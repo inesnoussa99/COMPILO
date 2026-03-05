@@ -1,0 +1,21 @@
+# build
+compiler/build/
+compiler/generated/
+
+# binaries
+compiler/ifcc
+a.out
+compiler/a.out
+
+# object files
+*.o
+*.d
+
+# local config
+compiler/config.mk
+
+# test outputs
+ifcc-test-output/
+
+# temporary files
+*.s

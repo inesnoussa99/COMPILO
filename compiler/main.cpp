@@ -7,6 +7,7 @@
 #include "generated/ifccLexer.h"
 #include "generated/ifccParser.h"
 #include "generated/ifccBaseVisitor.h"
+#include "SymbolTableVisitor.h"
 
 #include "CodeGenVisitor.h"
 
@@ -49,7 +50,15 @@ int main(int argn, const char **argv)
   }
 
   
-  CodeGenVisitor v;
+  SymbolTableVisitor st;
+  st.visit(tree);
+
+  if (st.hasError) {
+      // erreurs sémantiques détectées
+      exit(1);
+  }
+
+  CodeGenVisitor v(st.offsets);
   v.visit(tree);
 
   return 0;
