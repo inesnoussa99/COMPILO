@@ -210,8 +210,6 @@ Assembleur typique :
 mov w0, #65
 ```
 
-> Remarque : les échappements (`'\n'`, `'\t'`, etc.) ne sont pas gérés dans cette version minimale, sauf si vous avez volontairement étendu la grammaire.
-
 ---
 
 ### 5.5 Affectation `x = expr;`
@@ -301,8 +299,7 @@ Approche classique (pile ou registres temporaires) :
 4. récupérer gauche dans `w1`
 5. appliquer l’opération, résultat final dans `w0`
 
-> Important : la gestion correcte de la priorité des opérateurs (`*` avant `+/-`) dépend de la structure de la grammaire.  
-> Si vous avez utilisé une règle `expr` naïve récursive, la priorité peut être incorrecte. Une version “propre” sépare `term` et `factor`.
+
 
 ---
 
@@ -385,38 +382,6 @@ gcc -o out out.s
 echo $?
 ```
 
----
 
-## 8) Limitations actuelles (à ce stade)
-
-- pas de `if`, pas de `while`
-- pas de fonctions utilisateur
-- pas de tableaux, pas de pointeurs
-- pas de gestion avancée des caractères échappés (`'\n'`, etc.) sauf ajout volontaire
-- les erreurs sémantiques sont minimales (déclaration avant usage, double déclaration)
-
----
-
-## 9) Prochaines étapes possibles
-
-- priorité des opérateurs + parenthèses
-- division `/` + modulo `%`
-- comparaisons (`==`, `<`, `>`, …)
-- `if/else` et `while`
-- variables globales
-- gestion plus complète des `char` (échappements, signed/unsigned)
-
----
-
-## 10) Résumé des fonctionnalités “cochées” (actuelles)
-
-✅ Type `int` (32 bits)  
-✅ Variables locales  
-✅ Constantes entières  
-✅ Constantes caractère `'c'`  
-✅ Affectation `x = expr;`  
-✅ Retour `return expr;`  
-✅ Initialisation `int x = expr;` (si la règle a été ajoutée)  
-✅ `+`, `-`, `*` (si la grammaire et le codegen ont été ajoutés)  
 
 
