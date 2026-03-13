@@ -10,7 +10,7 @@ CodeGenVisitor::CodeGenVisitor(CFG& cfg) : cfg_(cfg) {}
 /// Visite un nœud et récupère le nom de variable IR résultat (std::string).
 std::string CodeGenVisitor::evalExpr(antlr4::tree::ParseTree* node) {
     antlrcpp::Any res = visit(node);
-    return res.as<std::string>();
+    return std::any_cast<std::string>(res);
 }
 
 // ─────────────────────────────────────────────

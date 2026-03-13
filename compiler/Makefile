@@ -5,38 +5,38 @@
 include config.mk
 
 CC=g++
-CCFLAGS=-g -c -std=c++17 -I$(ANTLRINC) -Wno-attributes
+CCFLAGS=-g -c -std=c++17 -I$(ANTLRINC) -Wno-attributes # -Wno-defaulted-function-deleted -Wno-unknown-warning-option
 LDFLAGS=-g
 
 default: all
 all: ifcc
 
 ##########################################
-# link together all pieces of our compiler
+# link together all pieces of our compiler 
 OBJECTS=build/ifccBaseVisitor.o \
 	build/ifccLexer.o \
 	build/ifccVisitor.o \
 	build/ifccParser.o \
 	build/main.o \
-	build/SymbolTableVisitor.o \
 	build/CodeGenVisitor.o \
-	build/IR.o
+	build/IR.o \
+	build/SymbolTableVisitor.o
 
 ifcc: $(OBJECTS)
 	@mkdir -p build
 	$(CC) $(LDFLAGS) build/*.o $(ANTLRLIB) -o ifcc
 
 ##########################################
-# compile our hand-written C++ code: main(), CodeGenVisitor, etc.
+# compile our hand-writen C++ code: main(), CodeGenVisitor, etc.
 build/%.o: %.cpp generated/ifccParser.cpp
 	@mkdir -p build
-	$(CC) $(CCFLAGS) -MMD -o $@ $<
+	$(CC) $(CCFLAGS) -MMD -o $@ $< 
 
 ##########################################
 # compile all the antlr-generated C++
 build/%.o: generated/%.cpp
 	@mkdir -p build
-	$(CC) $(CCFLAGS) -MMD -o $@ $<
+	$(CC) $(CCFLAGS) -MMD -o $@ $< 
 
 # automagic dependency management: `gcc -MMD` generates all the .d files for us
 -include build/*.d
@@ -47,16 +47,16 @@ build/%.d:
 generated/ifccLexer.cpp: generated/ifccParser.cpp
 generated/ifccVisitor.cpp: generated/ifccParser.cpp
 generated/ifccBaseVisitor.cpp: generated/ifccParser.cpp
-
 generated/ifccParser.cpp: ifcc.g4
 	@mkdir -p generated
 	java -jar $(ANTLRJAR) -visitor -no-listener -Dlanguage=Cpp -o generated ifcc.g4
 
 # prevent automatic cleanup of "intermediate" files like ifccLexer.cpp etc
-.PRECIOUS: generated/ifcc%.cpp
+.PRECIOUS: generated/ifcc%.cpp   
 
 ##########################################
 # view the parse tree in a graphical window
+
 # Usage: `make gui FILE=path/to/your/file.c`
 FILE ?= ../tests/testfiles/1_return42.c
 

@@ -4,7 +4,7 @@
 #include <string>
 #include <map>
 #include <iostream>
-#include "type.h"
+#include "Type.h"
 
 class BasicBlock;
 class CFG;
