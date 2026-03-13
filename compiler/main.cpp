@@ -1,65 +1,67 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include <cstring>
 #include <cstdlib>
 
 #include "antlr4-runtime.h"
 #include "generated/ifccLexer.h"
 #include "generated/ifccParser.h"
 #include "generated/ifccBaseVisitor.h"
-#include "SymbolTableVisitor.h"
 
-#include "CodeGenVisitor.h"
+#include "SymbolTableVisitor.h"   // vérifications sémantiques
+#include "IR.h"                   // CFG, BasicBlock, IRInstr
+#include "CodeGenVisitor.h"         // AST → IR
 
 using namespace antlr4;
 using namespace std;
 
-int main(int argn, const char **argv)
+static void usage(const char* prog) {
+    cerr << "usage: " << prog << " path/to/file.c\n";
+    exit(1);
+}
+
+int main(int argc, const char** argv)
 {
-  stringstream in;
-  if (argn==2)
-  {
-     ifstream lecture(argv[1]);
-     if( !lecture.good() )
-     {
-         cerr<<"error: cannot read file: " << argv[1] << endl ;
-         exit(1);
-     }
-     in << lecture.rdbuf();
-  }
-  else
-  {
-      cerr << "usage: ifcc path/to/file.c" << endl ;
-      exit(1);
-  }
-  
-  ANTLRInputStream input(in.str());
+    if (argc != 2) usage(argv[0]);
 
-  ifccLexer lexer(&input);
-  CommonTokenStream tokens(&lexer);
+    // ── Lecture du fichier source ──────────────────────────────────
+    stringstream in;
+    {
+        ifstream lecture(argv[1]);
+        if (!lecture.good()) {
+            cerr << "error: cannot read file: " << argv[1] << "\n";
+            exit(1);
+        }
+        in << lecture.rdbuf();
+    }
 
-  tokens.fill();
+    // ── Analyse syntaxique (ANTLR) ─────────────────────────────────
+    ANTLRInputStream  input(in.str());
+    ifccLexer         lexer(&input);
+    CommonTokenStream tokens(&lexer);
+    tokens.fill();
 
-  ifccParser parser(&tokens);
-  tree::ParseTree* tree = parser.axiom();
+    ifccParser       parser(&tokens);
+    tree::ParseTree* tree = parser.axiom();
 
-  if(parser.getNumberOfSyntaxErrors() != 0)
-  {
-      cerr << "error: syntax error during parsing" << endl;
-      exit(1);
-  }
+    if (parser.getNumberOfSyntaxErrors() != 0) {
+        cerr << "error: syntax error during parsing\n";
+        exit(1);
+    }
 
-  
-  SymbolTableVisitor st;
-  st.visit(tree);
+    // ── Passe 1 : table des symboles + vérifications sémantiques ──
+    SymbolTableVisitor st;
+    st.visit(tree);
+    if (st.hasError) exit(1);
 
-  if (st.hasError) {
-      // erreurs sémantiques détectées
-      exit(1);
-  }
+    // ── Passe 2 : construction de l'IR ────────────────────────────
+    CFG cfg("main", Type::INT);
+    CodeGenVisitor irGen(cfg);
+    irGen.visit(tree);
 
-  CodeGenVisitor v(st.offsets);
-  v.visit(tree);
+    // ── Passe 3 : génération d'assembleur x86 depuis l'IR ─────────
+    cfg.gen_asm(cout);
 
-  return 0;
+    return 0;
 }
