@@ -3,96 +3,64 @@
 #include <algorithm>
 #include <cassert>
 
-// ═══════════════════════════════════════════════════════════════
-//  IRInstr
-// ═══════════════════════════════════════════════════════════════
+#if defined(__aarch64__) || defined(__arm64__)
+  #define TARGET_ARM64 1
+#else
+  #define TARGET_ARM64 0
+#endif
 
 IRInstr::IRInstr(BasicBlock* bb_, Operation op_, Type t_,
                  std::vector<std::string> params_)
     : bb(bb_), op(op_), t(t_), params(std::move(params_)) {}
 
-void IRInstr::gen_asm(std::ostream& o) {
-    // Raccourci : récupère l'opérande assembleur d'un paramètre IR
-    auto reg = [&](int i) { return bb->cfg->IR_reg_to_asm(params[i]); };
+// ═══════════════════════════════════════════════════════════════
+//  gen_asm x86-64
+// ═══════════════════════════════════════════════════════════════
+#if !TARGET_ARM64
 
-    char suf = typeSuffix(t);  // 'l' pour int, 'b' pour char
+void IRInstr::gen_asm(std::ostream& o) {
+    auto reg        = [&](int i) { return bb->cfg->IR_reg_to_asm(params[i]); };
+    char suf        = typeSuffix(t);
     const char* acc = accReg(t);
 
     switch (op) {
-
-    // ── ldconst : dest = constante ─────────────────────────────
     case ldconst:
-        // params = { dest, "42" }
         o << "    mov" << suf << " $" << params[1] << ", " << reg(0) << "\n";
         break;
-
-    // ── copy : dest = src ──────────────────────────────────────
     case copy:
-        // params = { dest, src }
-        o << "    mov" << suf << " " << reg(1) << ", " << acc   << "\n";
+        o << "    mov" << suf << " " << reg(1) << ", " << acc    << "\n";
         o << "    mov" << suf << " " << acc    << ", " << reg(0) << "\n";
         break;
-
-    // ── add : dest = src1 + src2 ───────────────────────────────
     case add:
-        // params = { dest, src1, src2 }
-        o << "    mov" << suf << " " << reg(1) << ", " << acc   << "\n";
-        o << "    add" << suf << " " << reg(2) << ", " << acc   << "\n";
+        o << "    mov" << suf << " " << reg(1) << ", " << acc    << "\n";
+        o << "    add" << suf << " " << reg(2) << ", " << acc    << "\n";
         o << "    mov" << suf << " " << acc    << ", " << reg(0) << "\n";
         break;
-
-    // ── sub : dest = src1 - src2 ───────────────────────────────
     case sub:
-        // params = { dest, src1, src2 }
-        o << "    mov" << suf << " " << reg(1) << ", " << acc   << "\n";
-        o << "    sub" << suf << " " << reg(2) << ", " << acc   << "\n";
+        o << "    mov" << suf << " " << reg(1) << ", " << acc    << "\n";
+        o << "    sub" << suf << " " << reg(2) << ", " << acc    << "\n";
         o << "    mov" << suf << " " << acc    << ", " << reg(0) << "\n";
         break;
-
-    // ── mul : dest = src1 * src2 ───────────────────────────────
     case mul:
-        // params = { dest, src1, src2 }
-        o << "    mov" << suf << " " << reg(1) << ", " << acc   << "\n";
-        o << "    imul" << suf << " " << reg(2) << ", " << acc   << "\n";
-        o << "    mov" << suf << " " << acc    << ", " << reg(0) << "\n";
+        o << "    mov"  << suf << " " << reg(1) << ", " << acc    << "\n";
+        o << "    imul" << suf << " " << reg(2) << ", " << acc    << "\n";
+        o << "    mov"  << suf << " " << acc    << ", " << reg(0) << "\n";
         break;
-
-    // ── rmem : dest = *adresse ─────────────────────────────────
     case rmem:
-        // params = { dest, adresse }
-        // Pour l'instant adresse est toujours une variable (offset rbp)
-        o << "    mov" << suf << " " << reg(1) << ", " << acc   << "\n";
-        o << "    mov" << suf << " " << acc    << ", " << reg(0) << "\n";
-        break;
-
-    // ── wmem : *adresse = src ──────────────────────────────────
     case wmem:
-        // params = { adresse, src }
-        o << "    mov" << suf << " " << reg(1) << ", " << acc   << "\n";
+        o << "    mov" << suf << " " << reg(1) << ", " << acc    << "\n";
         o << "    mov" << suf << " " << acc    << ", " << reg(0) << "\n";
         break;
-
-    // ── call : appel de fonction ───────────────────────────────
     case call: {
-        // params = { label_fonction, dest, arg0, arg1, … }
-        // ABI System V AMD64 : args entiers dans rdi, rsi, rdx, rcx, r8, r9
-        static const char* argRegs[] = {
-            "%edi", "%esi", "%edx", "%ecx", "%r8d", "%r9d"
-        };
-        int nargs = (int)params.size() - 2;  // params[0]=label, params[1]=dest
-        for (int i = 0; i < nargs && i < 6; i++) {
-            o << "    movl " << bb->cfg->IR_reg_to_asm(params[2 + i])
-              << ", " << argRegs[i] << "\n";
-        }
+        static const char* argRegs[] = { "%edi","%esi","%edx","%ecx","%r8d","%r9d" };
+        int nargs = (int)params.size() - 2;
+        for (int i = 0; i < nargs && i < 6; i++)
+            o << "    movl " << bb->cfg->IR_reg_to_asm(params[2+i]) << ", " << argRegs[i] << "\n";
         o << "    call " << params[0] << "\n";
-        // La valeur de retour est dans %eax ; stocker dans dest si non vide
-        if (!params[1].empty()) {
+        if (!params[1].empty())
             o << "    movl %eax, " << bb->cfg->IR_reg_to_asm(params[1]) << "\n";
-        }
         break;
     }
-
-    // ── cmp_eq : dest = (src1 == src2) ? 1 : 0 ───────────────
     case cmp_eq:
         o << "    movl " << reg(1) << ", %eax\n";
         o << "    cmpl " << reg(2) << ", %eax\n";
@@ -100,8 +68,6 @@ void IRInstr::gen_asm(std::ostream& o) {
         o << "    movzbl %al, %eax\n";
         o << "    movl %eax, " << reg(0) << "\n";
         break;
-
-    // ── cmp_lt : dest = (src1 < src2) ? 1 : 0 ────────────────
     case cmp_lt:
         o << "    movl " << reg(1) << ", %eax\n";
         o << "    cmpl " << reg(2) << ", %eax\n";
@@ -109,8 +75,6 @@ void IRInstr::gen_asm(std::ostream& o) {
         o << "    movzbl %al, %eax\n";
         o << "    movl %eax, " << reg(0) << "\n";
         break;
-
-    // ── cmp_le : dest = (src1 <= src2) ? 1 : 0 ───────────────
     case cmp_le:
         o << "    movl " << reg(1) << ", %eax\n";
         o << "    cmpl " << reg(2) << ", %eax\n";
@@ -118,11 +82,98 @@ void IRInstr::gen_asm(std::ostream& o) {
         o << "    movzbl %al, %eax\n";
         o << "    movl %eax, " << reg(0) << "\n";
         break;
-
     default:
-        throw std::runtime_error("IRInstr::gen_asm: opération inconnue");
+        throw std::runtime_error("IRInstr::gen_asm x86: opération inconnue");
     }
 }
+
+// ═══════════════════════════════════════════════════════════════
+//  gen_asm ARM64
+//  Registres : w8=scratch gauche, w9=scratch droite, w0=retour ABI
+// ═══════════════════════════════════════════════════════════════
+#else
+
+void IRInstr::gen_asm(std::ostream& o) {
+    // Charge le paramètre i dans le registre wreg
+    auto load = [&](int i, const char* wreg) {
+        const std::string& p = params[i];
+        if (!p.empty() && (std::isdigit((unsigned char)p[0]) || p[0] == '-')) {
+            o << "    mov   " << wreg << ", #" << p << "\n";
+        } else {
+            int off = bb->cfg->get_var_index(p);
+            o << "    ldr   " << wreg << ", [x29, #-" << off << "]\n";
+        }
+    };
+    // Stocke wreg dans la variable params[i]
+    auto store = [&](int i, const char* wreg) {
+        int off = bb->cfg->get_var_index(params[i]);
+        o << "    str   " << wreg << ", [x29, #-" << off << "]\n";
+    };
+
+    switch (op) {
+    case ldconst:
+        o << "    mov   w8, #" << params[1] << "\n";
+        store(0, "w8");
+        break;
+    case copy:
+        load(1, "w8");
+        store(0, "w8");
+        break;
+    case add:
+        load(1, "w8"); load(2, "w9");
+        o << "    add   w8, w8, w9\n";
+        store(0, "w8");
+        break;
+    case sub:
+        load(1, "w8"); load(2, "w9");
+        o << "    sub   w8, w8, w9\n";
+        store(0, "w8");
+        break;
+    case mul:
+        load(1, "w8"); load(2, "w9");
+        o << "    mul   w8, w8, w9\n";
+        store(0, "w8");
+        break;
+    case rmem:
+    case wmem:
+        load(1, "w8");
+        store(0, "w8");
+        break;
+    case call: {
+        static const char* argRegs[] = { "w0","w1","w2","w3","w4","w5" };
+        int nargs = (int)params.size() - 2;
+        for (int i = 0; i < nargs && i < 6; i++) load(2+i, argRegs[i]);
+        o << "    bl    _" << params[0] << "\n";
+        if (!params[1].empty()) {
+            int odest = bb->cfg->get_var_index(params[1]);
+            o << "    str   w0, [x29, #-" << odest << "]\n";
+        }
+        break;
+    }
+    case cmp_eq:
+        load(1,"w8"); load(2,"w9");
+        o << "    cmp   w8, w9\n";
+        o << "    cset  w8, eq\n";
+        store(0,"w8");
+        break;
+    case cmp_lt:
+        load(1,"w8"); load(2,"w9");
+        o << "    cmp   w8, w9\n";
+        o << "    cset  w8, lt\n";
+        store(0,"w8");
+        break;
+    case cmp_le:
+        load(1,"w8"); load(2,"w9");
+        o << "    cmp   w8, w9\n";
+        o << "    cset  w8, le\n";
+        store(0,"w8");
+        break;
+    default:
+        throw std::runtime_error("IRInstr::gen_asm ARM64: opération inconnue");
+    }
+}
+
+#endif // TARGET_ARM64
 
 // ═══════════════════════════════════════════════════════════════
 //  BasicBlock
@@ -138,26 +189,29 @@ void BasicBlock::add_IRInstr(IRInstr::Operation op, Type t,
 }
 
 void BasicBlock::gen_asm(std::ostream& o) {
-    // Émettre le label du bloc
     o << label << ":\n";
+    for (auto* instr : instrs) instr->gen_asm(o);
 
-    // Émettre toutes les instructions
-    for (auto* instr : instrs)
-        instr->gen_asm(o);
-
-    // Gestion des successeurs
     if (exit_true == nullptr) {
-        // Fin de fonction → épilogue
         cfg->gen_asm_epilogue(o);
     } else if (exit_false == nullptr) {
-        // Saut inconditionnel
+#if TARGET_ARM64
+        o << "    b     " << exit_true->label << "\n";
+#else
         o << "    jmp " << exit_true->label << "\n";
+#endif
     } else {
-        // Branchement conditionnel sur test_var_name
+#if TARGET_ARM64
+        int off = cfg->get_var_index(test_var_name);
+        o << "    ldr   w8, [x29, #-" << off << "]\n";
+        o << "    cbz   w8, " << exit_false->label << "\n";
+        o << "    b     " << exit_true->label  << "\n";
+#else
         std::string cond = cfg->IR_reg_to_asm(test_var_name);
         o << "    cmpl $0, " << cond << "\n";
         o << "    je  " << exit_false->label << "\n";
         o << "    jmp " << exit_true->label  << "\n";
+#endif
     }
 }
 
@@ -168,8 +222,7 @@ void BasicBlock::gen_asm(std::ostream& o) {
 CFG::CFG(const std::string& name, Type retType)
     : current_bb(nullptr), functionName(name),
       nextFreeSymbolIndex(0), nextBBnumber(0),
-      nextTmpNumber(0), returnType_(retType) {
-    // Pré-allouer la variable de retour spéciale
+      nextTmpNumber(0), returnType_(retType), frameSize_(0) {
     add_to_symbol_table("!retval", Type::INT);
 }
 
@@ -180,21 +233,14 @@ CFG::~CFG() {
     }
 }
 
-// ── Gestion des blocs ─────────────────────────────────────────
-
-void CFG::add_bb(BasicBlock* bb) {
-    bbs.push_back(bb);
-    current_bb = bb;
-}
+void CFG::add_bb(BasicBlock* bb) { bbs.push_back(bb); current_bb = bb; }
 
 std::string CFG::new_BB_name() {
     return ".L" + functionName + "_" + std::to_string(nextBBnumber++);
 }
 
-// ── Table des symboles ────────────────────────────────────────
-
 void CFG::add_to_symbol_table(const std::string& name, Type t) {
-    if (SymbolIndex.count(name)) return; // déjà alloué
+    if (SymbolIndex.count(name)) return;
     nextFreeSymbolIndex += typeSize(t);
     SymbolType[name]  = t;
     SymbolIndex[name] = nextFreeSymbolIndex;
@@ -220,24 +266,15 @@ Type CFG::get_var_type(const std::string& name) const {
     return it->second;
 }
 
-// ── Conversion nom IR → opérande ASM ─────────────────────────
-
 std::string CFG::IR_reg_to_asm(const std::string& reg) const {
     if (reg.empty()) return "";
-
-    // Constante numérique (éventuellement négative)
     if (reg[0] == '-' || std::isdigit((unsigned char)reg[0]))
         return "$" + reg;
-
-    // Variable dans la table des symboles
     auto it = SymbolIndex.find(reg);
     if (it != SymbolIndex.end())
         return "-" + std::to_string(it->second) + "(%rbp)";
-
     throw std::runtime_error("CFG::IR_reg_to_asm: nom inconnu : '" + reg + "'");
 }
-
-// ── Génération assembleur ─────────────────────────────────────
 
 int CFG::stackSize() const {
     int maxOff = 0;
@@ -247,6 +284,13 @@ int CFG::stackSize() const {
 
 void CFG::gen_asm_prologue(std::ostream& o) {
     int sz = stackSize();
+#if TARGET_ARM64
+    o << ".globl _" << functionName << "\n";
+    o << "_" << functionName << ":\n";
+    frameSize_ = align16(sz + 16);
+    o << "    stp   x29, x30, [sp, #-" << frameSize_ << "]!\n";
+    o << "    mov   x29, sp\n";
+#else
 #ifdef __APPLE__
     o << ".globl _" << functionName << "\n";
     o << "_" << functionName << ":\n";
@@ -256,25 +300,29 @@ void CFG::gen_asm_prologue(std::ostream& o) {
 #endif
     o << "    pushq %rbp\n";
     o << "    movq  %rsp, %rbp\n";
-    if (sz > 0)
-        o << "    subq  $" << sz << ", %rsp\n";
+    if (sz > 0) o << "    subq  $" << sz << ", %rsp\n";
+#endif
 }
 
 void CFG::gen_asm_epilogue(std::ostream& o) {
-    int sz = stackSize();
-    // Charger la valeur de retour (!retval) dans %eax si elle existe
+#if TARGET_ARM64
     auto it = SymbolIndex.find("!retval");
-    if (it != SymbolIndex.end()) {
+    if (it != SymbolIndex.end())
+        o << "    ldr   w0, [x29, #-" << it->second << "]\n";
+    o << "    ldp   x29, x30, [sp], #" << frameSize_ << "\n";
+    o << "    ret\n";
+#else
+    int sz = stackSize();
+    auto it = SymbolIndex.find("!retval");
+    if (it != SymbolIndex.end())
         o << "    movl  -" << it->second << "(%rbp), %eax\n";
-    }
-    if (sz > 0)
-        o << "    addq  $" << sz << ", %rsp\n";
+    if (sz > 0) o << "    addq  $" << sz << ", %rsp\n";
     o << "    popq  %rbp\n";
     o << "    ret\n";
+#endif
 }
 
 void CFG::gen_asm(std::ostream& o) {
     gen_asm_prologue(o);
-    for (auto* bb : bbs)
-        bb->gen_asm(o);
+    for (auto* bb : bbs) bb->gen_asm(o);
 }
