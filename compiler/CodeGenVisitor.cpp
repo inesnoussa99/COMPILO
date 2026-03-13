@@ -20,9 +20,13 @@ antlrcpp::Any CodeGenVisitor::visitProg(ifccParser::ProgContext *ctx)
 
 antlrcpp::Any CodeGenVisitor::visitReturn_stmt(ifccParser::Return_stmtContext *ctx)
 {
-    int retval = stoi(ctx->CONST()->getText());
+    auto *e = ctx->expr();
 
-    std::cout << "    movl $"<<retval<<", %eax\n" ;
-
+    if (e->CONST() != nullptr) {
+        int retval = std::stoi(e->CONST()->getText());
+        std::cout << "    movl $" << retval << ", %eax\n";
+        return 0;
+    }
+     std::cerr << "error: return d'une variable pas encore supporte\n";
     return 0;
 }

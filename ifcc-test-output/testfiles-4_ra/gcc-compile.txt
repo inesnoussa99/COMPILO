@@ -1,0 +1,9 @@
+input.c:1:1: error: unknown type name ‘how’
+    1 | how old is the compiler?
+      | ^~~
+input.c:1:9: error: expected ‘=’, ‘,’, ‘;’, ‘asm’ or ‘__attribute__’ before ‘is’
+    1 | how old is the compiler?
+      |         ^~
+input.c:1:9: error: unknown type name ‘is’
+
+exit status: 1

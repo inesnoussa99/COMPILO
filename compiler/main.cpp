@@ -10,6 +10,8 @@
 
 #include "CodeGenVisitor.h"
 
+#include "VarIndexVisitor.h"
+
 using namespace antlr4;
 using namespace std;
 
@@ -48,7 +50,15 @@ int main(int argn, const char **argv)
       exit(1);
   }
 
-  
+  // 1) Analyse sémantique (déclarations / utilisations / offsets)
+  VarIndexVisitor sema;
+  try {
+    sema.visit(tree);
+  } catch (const std::exception& e) {
+    std::cerr << e.what() << std::endl;
+    return 1;
+  }
+
   CodeGenVisitor v;
   v.visit(tree);
 

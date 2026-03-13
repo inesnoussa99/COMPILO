@@ -1,0 +1,3 @@
+[VarIndexVisitor] Variables (name -> offset)
+
+exit status: 0

@@ -1,0 +1,5 @@
+[VarIndexVisitor] Variables (name -> offset)
+  x -> 0
+error: return d'une variable pas encore supporte
+
+exit status: 0
