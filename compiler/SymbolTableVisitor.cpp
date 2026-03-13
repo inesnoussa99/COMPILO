@@ -40,8 +40,7 @@ antlrcpp::Any SymbolTableVisitor::visitProg(ifccParser::ProgContext *ctx) {
         // Les temporaires internes commencent par '!' → on les ignore
         if (p.first[0] == '!') continue;
         if (used.find(p.first) == used.end()) {
-            std::cerr << "error: variable declared but never used: " << p.first << "\n";
-            hasError = true;
+            std::cerr << "warning: variable declared but never used: " << p.first << "\n";
         }
     }
     return 0;
