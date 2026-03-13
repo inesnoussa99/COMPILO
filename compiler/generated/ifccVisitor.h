@@ -27,7 +27,11 @@ public:
 
     virtual std::any visitDeclaration(ifccParser::DeclarationContext *context) = 0;
 
-    virtual std::any visitAssignment(ifccParser::AssignmentContext *context) = 0;
+    virtual std::any visitArrayDeclaration(ifccParser::ArrayDeclarationContext *context) = 0;
+
+    virtual std::any visitVarAssignment(ifccParser::VarAssignmentContext *context) = 0;
+
+    virtual std::any visitArrayAssignment(ifccParser::ArrayAssignmentContext *context) = 0;
 
     virtual std::any visitIfStmt(ifccParser::IfStmtContext *context) = 0;
 
@@ -37,21 +41,27 @@ public:
 
     virtual std::any visitConstExpr(ifccParser::ConstExprContext *context) = 0;
 
-    virtual std::any visitArrayExpr(ifccParser::ArrayExprContext *context) = 0;
-
-    virtual std::any visitEqualityExpr(ifccParser::EqualityExprContext *context) = 0;
-
     virtual std::any visitBitwiseOrExpr(ifccParser::BitwiseOrExprContext *context) = 0;
 
-    virtual std::any visitParExpr(ifccParser::ParExprContext *context) = 0;
-
     virtual std::any visitMultExpr(ifccParser::MultExprContext *context) = 0;
-
-    virtual std::any visitVarExpr(ifccParser::VarExprContext *context) = 0;
 
     virtual std::any visitAddExpr(ifccParser::AddExprContext *context) = 0;
 
     virtual std::any visitRelationalExpr(ifccParser::RelationalExprContext *context) = 0;
+
+    virtual std::any visitUnaryExpr(ifccParser::UnaryExprContext *context) = 0;
+
+    virtual std::any visitLogicalAndExpr(ifccParser::LogicalAndExprContext *context) = 0;
+
+    virtual std::any visitLogicalOrExpr(ifccParser::LogicalOrExprContext *context) = 0;
+
+    virtual std::any visitArrayExpr(ifccParser::ArrayExprContext *context) = 0;
+
+    virtual std::any visitEqualityExpr(ifccParser::EqualityExprContext *context) = 0;
+
+    virtual std::any visitParExpr(ifccParser::ParExprContext *context) = 0;
+
+    virtual std::any visitVarExpr(ifccParser::VarExprContext *context) = 0;
 
     virtual std::any visitBitwiseXorExpr(ifccParser::BitwiseXorExprContext *context) = 0;
 

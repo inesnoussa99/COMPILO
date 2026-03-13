@@ -31,7 +31,15 @@ public:
     return visitChildren(ctx);
   }
 
-  virtual std::any visitAssignment(ifccParser::AssignmentContext *ctx) override {
+  virtual std::any visitArrayDeclaration(ifccParser::ArrayDeclarationContext *ctx) override {
+    return visitChildren(ctx);
+  }
+
+  virtual std::any visitVarAssignment(ifccParser::VarAssignmentContext *ctx) override {
+    return visitChildren(ctx);
+  }
+
+  virtual std::any visitArrayAssignment(ifccParser::ArrayAssignmentContext *ctx) override {
     return visitChildren(ctx);
   }
 
@@ -51,27 +59,11 @@ public:
     return visitChildren(ctx);
   }
 
-  virtual std::any visitArrayExpr(ifccParser::ArrayExprContext *ctx) override {
-    return visitChildren(ctx);
-  }
-
-  virtual std::any visitEqualityExpr(ifccParser::EqualityExprContext *ctx) override {
-    return visitChildren(ctx);
-  }
-
   virtual std::any visitBitwiseOrExpr(ifccParser::BitwiseOrExprContext *ctx) override {
     return visitChildren(ctx);
   }
 
-  virtual std::any visitParExpr(ifccParser::ParExprContext *ctx) override {
-    return visitChildren(ctx);
-  }
-
   virtual std::any visitMultExpr(ifccParser::MultExprContext *ctx) override {
-    return visitChildren(ctx);
-  }
-
-  virtual std::any visitVarExpr(ifccParser::VarExprContext *ctx) override {
     return visitChildren(ctx);
   }
 
@@ -80,6 +72,34 @@ public:
   }
 
   virtual std::any visitRelationalExpr(ifccParser::RelationalExprContext *ctx) override {
+    return visitChildren(ctx);
+  }
+
+  virtual std::any visitUnaryExpr(ifccParser::UnaryExprContext *ctx) override {
+    return visitChildren(ctx);
+  }
+
+  virtual std::any visitLogicalAndExpr(ifccParser::LogicalAndExprContext *ctx) override {
+    return visitChildren(ctx);
+  }
+
+  virtual std::any visitLogicalOrExpr(ifccParser::LogicalOrExprContext *ctx) override {
+    return visitChildren(ctx);
+  }
+
+  virtual std::any visitArrayExpr(ifccParser::ArrayExprContext *ctx) override {
+    return visitChildren(ctx);
+  }
+
+  virtual std::any visitEqualityExpr(ifccParser::EqualityExprContext *ctx) override {
+    return visitChildren(ctx);
+  }
+
+  virtual std::any visitParExpr(ifccParser::ParExprContext *ctx) override {
+    return visitChildren(ctx);
+  }
+
+  virtual std::any visitVarExpr(ifccParser::VarExprContext *ctx) override {
     return visitChildren(ctx);
   }
 

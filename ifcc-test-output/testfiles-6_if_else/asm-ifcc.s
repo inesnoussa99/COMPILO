@@ -2,7 +2,7 @@
 main:
     pushq %rbp
     movq %rsp, %rbp
-    subq $32, %rsp
+    subq $1056, %rsp
     movl $10, %eax
     movl %eax, -4(%rbp)
     movl $5, %eax
@@ -10,10 +10,10 @@ main:
     movl $20, %eax
     movl %eax, -12(%rbp)
     movl -4(%rbp), %eax
-    pushq %rax
+    movq %rax, -32(%rbp)
     movl -8(%rbp), %eax
     movl %eax, %ecx
-    popq %rax
+    movq -32(%rbp), %rax
     cmpl %ecx, %eax
     setg %al
     movzbl %al, %eax
@@ -27,20 +27,20 @@ else_0:
     movl %eax, -16(%rbp)
 end_if_0:
     movl -16(%rbp), %eax
-    pushq %rax
+    movq %rax, -32(%rbp)
     movl $100, %eax
     movl %eax, %ecx
-    popq %rax
+    movq -32(%rbp), %rax
     cmpl %ecx, %eax
     sete %al
     movzbl %al, %eax
     cmpl $0, %eax
     je else_1
     movl -12(%rbp), %eax
-    pushq %rax
+    movq %rax, -32(%rbp)
     movl -4(%rbp), %eax
     movl %eax, %ecx
-    popq %rax
+    movq -32(%rbp), %rax
     cmpl %ecx, %eax
     setl %al
     movzbl %al, %eax

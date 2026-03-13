@@ -2,7 +2,7 @@
 main:
     pushq %rbp
     movq %rsp, %rbp
-    subq $16, %rsp
+    subq $1040, %rsp
     movl $10, %eax
     movl %eax, -4(%rbp)
     movl $5, %eax
@@ -10,24 +10,24 @@ main:
     movl $2, %eax
     movl %eax, -12(%rbp)
     movl -4(%rbp), %eax
-    pushq %rax
+    movq %rax, -24(%rbp)
     movl -8(%rbp), %eax
-    popq %rdx
+    movq -24(%rbp), %rdx
     addl %edx, %eax
-    pushq %rax
+    movq %rax, -24(%rbp)
     movl -12(%rbp), %eax
     movl %eax, %ecx
-    popq %rax
+    movq -24(%rbp), %rax
     imull %ecx, %eax
-    pushq %rax
+    movq %rax, -24(%rbp)
     movl -4(%rbp), %eax
-    pushq %rax
+    movq %rax, -32(%rbp)
     movl -8(%rbp), %eax
     movl %eax, %ecx
-    popq %rax
+    movq -32(%rbp), %rax
     cltd
     idivl %ecx
-    popq %rdx
+    movq -24(%rbp), %rdx
     negl %eax
     addl %edx, %eax
     movl %eax, -16(%rbp)

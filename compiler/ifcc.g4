@@ -7,14 +7,17 @@ prog : 'int' 'main' '(' ')' '{' statement* '}' ;
 statement 
     : 'return' expr ';'                         # ReturnStmt
     | 'int' VAR ';'                             # Declaration
-    | VAR '=' expr ';'                          # Assignment
+    | 'int' VAR '[' expr ']' ';'                # ArrayDeclaration
+    | VAR '=' expr ';'                          # VarAssignment
+    | VAR '[' index=expr ']' '=' val=expr ';'   # ArrayAssignment
     | 'if' '(' expr ')' thenStmt=statement 
       ('else' elseStmt=statement)?              # IfStmt
-    | '{' (statements+=statement)* '}'          # BlocStmt
+    | '{' statements=statement* '}'             # BlocStmt
     ;
 
 expr : '(' expr ')'                         # ParExpr
-     | expr OM=('*'|'/') expr               # MultExpr
+     | OU=('!'|'~'|'-') expr                # UnaryExpr
+     | expr OM=('*'|'/'|'%') expr           # MultExpr
      | expr OA=('+'|'-') expr               # AddExpr
      | expr OS=('<<'|'>>') expr             # ShiftExpr
      | expr OR=('<'|'>'|'<='|'>=') expr     # RelationalExpr
@@ -22,9 +25,11 @@ expr : '(' expr ')'                         # ParExpr
      | expr '&' expr                        # BitwiseAndExpr
      | expr '^' expr                        # BitwiseXorExpr
      | expr '|' expr                        # BitwiseOrExpr
+     | expr '&&' expr                       # LogicalAndExpr
+     | expr '||' expr                       # LogicalOrExpr
      | VAR                                  # VarExpr
      | CONST                                # ConstExpr
-     | VAR '[' CONST ']'                    # ArrayExpr 
+     | VAR '[' expr ']'                     # ArrayExpr 
      ;
 
 RETURN : 'return' ;

@@ -51,7 +51,7 @@ int main(int argn, const char **argv)
 
   StaticVisitor s;
   s.visit(tree);
-  CodeGenVisitor v(s.getSymbolTable());
+  CodeGenVisitor v(s.getAddressTable(),s.getTotalOffset());
   v.visit(tree);
 
   return 0;
