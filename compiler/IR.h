@@ -14,7 +14,8 @@ public:
     typedef enum {
         ldconst, copy, add, sub, mul,
         rmem, wmem, call,
-        cmp_eq, cmp_lt, cmp_le
+        cmp_eq, cmp_ne, cmp_lt, cmp_gt, cmp_le, div, mod, not_op,
+        bit_or, bit_xor, bit_and,
     } Operation;
 
     IRInstr(BasicBlock* bb, Operation op, Type t, std::vector<std::string> params);
@@ -39,6 +40,7 @@ public:
     CFG*        cfg;
     std::vector<IRInstr*> instrs;
     std::string test_var_name;
+    bool isReturnExit = false;
 };
 
 class CFG {
@@ -51,6 +53,7 @@ public:
     BasicBlock* current_bb;
 
     void        add_to_symbol_table(const std::string& name, Type t);
+    void        add_param(const std::string& name, Type t);
     std::string create_new_tempvar(Type t);
     int         get_var_index(const std::string& name) const;
     Type        get_var_type(const std::string& name) const;
@@ -66,6 +69,7 @@ public:
 private:
     std::map<std::string, Type> SymbolType;
     std::map<std::string, int>  SymbolIndex;
+    std::vector<std::string>    params_;
     int nextFreeSymbolIndex = 0;
     int nextBBnumber        = 0;
     int nextTmpNumber       = 0;

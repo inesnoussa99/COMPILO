@@ -1,42 +1,65 @@
 #pragma once
 #include "generated/ifccBaseVisitor.h"
+#include "Type.h"
 #include <map>
-#include <set>
 #include <string>
+#include <vector>
 
 /**
  * SymbolTableVisitor
  *
- * Parcourt l'AST pour :
- *   1. Associer à chaque variable utilisateur un offset mémoire.
- *   2. Effectuer les vérifications sémantiques statiques.
- *   3. Calculer la profondeur maximale des expressions binaires et
- *      pré-allouer les slots temporaires "!tmp0", "!tmp1", …
- *      utilisés par CodeGenVisitor à la place des push/pop.
+ * Vérifications sémantiques avec scopes imbriqués et shadowing.
+ * Une variable d'un scope interne peut porter le même nom qu'une variable
+ * externe (shadowing C standard).
  */
 class SymbolTableVisitor : public ifccBaseVisitor {
 public:
-    std::map<std::string,int> offsets;   ///< nom → offset (positif, depuis rbp)
-    std::set<std::string>     used;      ///< variables utilisées
     bool hasError = false;
 
-    // ── Visiteurs principaux ──────────────────────────────────────
     antlrcpp::Any visitProg(ifccParser::ProgContext *ctx) override;
+    antlrcpp::Any visitFunc_def(ifccParser::Func_defContext *ctx) override;
+    antlrcpp::Any visitBlock_stmt(ifccParser::Block_stmtContext *ctx) override;
+    antlrcpp::Any visitIf_stmt(ifccParser::If_stmtContext *ctx) override;
+    antlrcpp::Any visitWhile_stmt(ifccParser::While_stmtContext *ctx) override;
     antlrcpp::Any visitDecl_stmt(ifccParser::Decl_stmtContext *ctx) override;
-    antlrcpp::Any visitAssign_stmt(ifccParser::Assign_stmtContext *ctx) override;
+    antlrcpp::Any visitExpr_stmt(ifccParser::Expr_stmtContext *ctx) override;
     antlrcpp::Any visitReturn_stmt(ifccParser::Return_stmtContext *ctx) override;
 
     antlrcpp::Any visitExpr(ifccParser::ExprContext *ctx) override;
+    antlrcpp::Any visitEq_expr(ifccParser::Eq_exprContext *ctx) override;
+    antlrcpp::Any visitRel_expr(ifccParser::Rel_exprContext *ctx) override;
+    antlrcpp::Any visitBitor_expr(ifccParser::Bitor_exprContext *ctx) override;
+    antlrcpp::Any visitXor_expr(ifccParser::Xor_exprContext *ctx) override;
+    antlrcpp::Any visitAnd_expr(ifccParser::And_exprContext *ctx) override;
+    antlrcpp::Any visitAdd_expr(ifccParser::Add_exprContext *ctx) override;
     antlrcpp::Any visitTerm(ifccParser::TermContext *ctx) override;
     antlrcpp::Any visitFactor(ifccParser::FactorContext *ctx) override;
 
 private:
-    int exprDepth_    = 0;   ///< profondeur courante d'imbrication lors du parcours
-    int maxTmpNeeded_ = 0;   ///< nb de temporaires simultanés nécessaires
+    // ── Table des fonctions ───────────────────────────────────────
+    struct FuncInfo { int paramCount; Type retType; };
+    std::map<std::string, FuncInfo> functions_;
 
-    /// Alloue un nouvel offset pour une variable ou un temporaire.
-    int allocSlot();
+    // ── Pile de scopes ────────────────────────────────────────────
+    // Chaque scope est une map nom → a-t-il été utilisé ?
+    // Le shadowing est autorisé : même nom possible dans plusieurs scopes.
+    std::vector<std::map<std::string, bool>> scopes_;
 
-    /// Alloue les slots !tmp0 … !tmp(n-1) dans la table.
-    void allocTemporaries(int n);
+    void enterScope();
+    void exitScope();
+
+    /// Déclare dans le scope courant ; erreur seulement si doublon DANS CE SCOPE.
+    void declareVar(const std::string& name);
+
+    /// Cherche de l'intérieur vers l'extérieur ; retourne true si visible.
+    bool isVisible(const std::string& name) const;
+
+    /// Marque utilisée la déclaration la plus interne du nom.
+    void markUsed(const std::string& name);
+
+    int exprDepth_    = 0;
+    int maxTmpNeeded_ = 0;
+
+    void registerBuiltins();
+    void collectSignatures(ifccParser::ProgContext* ctx);
 };

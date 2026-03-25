@@ -46,6 +46,39 @@ void IRInstr::gen_asm(std::ostream& o) {
         o << "    imul" << suf << " " << reg(2) << ", " << acc    << "\n";
         o << "    mov"  << suf << " " << acc    << ", " << reg(0) << "\n";
         break;
+    case div:
+        o << "    movl " << reg(1) << ", %eax\n";
+        o << "    cdq\n";
+        o << "    idivl " << reg(2) << "\n";
+        o << "    movl %eax, " << reg(0) << "\n";
+        break;
+    case mod:
+        o << "    movl " << reg(1) << ", %eax\n";
+        o << "    cdq\n";
+        o << "    idivl " << reg(2) << "\n";
+        o << "    movl %edx, " << reg(0) << "\n";
+        break;
+    case not_op:
+        o << "    cmpl $0, " << reg(1) << "\n";
+        o << "    sete %al\n";
+        o << "    movzbl %al, %eax\n";
+        o << "    movl %eax, " << reg(0) << "\n";
+        break;
+    case bit_or:
+        o << "    movl " << reg(1) << ", %eax\n";
+        o << "    orl  " << reg(2) << ", %eax\n";
+        o << "    movl %eax, " << reg(0) << "\n";
+        break;
+    case bit_xor:
+        o << "    movl " << reg(1) << ", %eax\n";
+        o << "    xorl " << reg(2) << ", %eax\n";
+        o << "    movl %eax, " << reg(0) << "\n";
+        break;
+    case bit_and:
+        o << "    movl " << reg(1) << ", %eax\n";
+        o << "    andl " << reg(2) << ", %eax\n";
+        o << "    movl %eax, " << reg(0) << "\n";
+        break;
     case rmem:
     case wmem:
         o << "    mov" << suf << " " << reg(1) << ", " << acc    << "\n";
@@ -68,10 +101,24 @@ void IRInstr::gen_asm(std::ostream& o) {
         o << "    movzbl %al, %eax\n";
         o << "    movl %eax, " << reg(0) << "\n";
         break;
+    case cmp_ne:
+        o << "    movl " << reg(1) << ", %eax\n";
+        o << "    cmpl " << reg(2) << ", %eax\n";
+        o << "    setne %al\n";
+        o << "    movzbl %al, %eax\n";
+        o << "    movl %eax, " << reg(0) << "\n";
+        break;
     case cmp_lt:
         o << "    movl " << reg(1) << ", %eax\n";
         o << "    cmpl " << reg(2) << ", %eax\n";
         o << "    setl %al\n";
+        o << "    movzbl %al, %eax\n";
+        o << "    movl %eax, " << reg(0) << "\n";
+        break;
+    case cmp_gt:
+        o << "    movl " << reg(1) << ", %eax\n";
+        o << "    cmpl " << reg(2) << ", %eax\n";
+        o << "    setg %al\n";
         o << "    movzbl %al, %eax\n";
         o << "    movl %eax, " << reg(0) << "\n";
         break;
@@ -134,6 +181,38 @@ void IRInstr::gen_asm(std::ostream& o) {
         o << "    mul   w8, w8, w9\n";
         store(0, "w8");
         break;
+    case div:
+        load(1,"w8"); load(2,"w9");
+        o << "    sdiv  w8, w8, w9\n";
+        store(0,"w8");
+        break;
+    case mod:
+        load(1,"w8"); load(2,"w9");
+        o << "    sdiv  w10, w8, w9\n";
+        o << "    msub  w8, w10, w9, w8\n";
+        store(0,"w8");
+        break;
+    case not_op:
+        load(1,"w8");
+        o << "    cmp   w8, #0\n";
+        o << "    cset  w8, eq\n";
+        store(0,"w8");
+        break;
+    case bit_or:
+        load(1,"w8"); load(2,"w9");
+        o << "    orr   w8, w8, w9\n";
+        store(0,"w8");
+        break;
+    case bit_xor:
+        load(1,"w8"); load(2,"w9");
+        o << "    eor   w8, w8, w9\n";
+        store(0,"w8");
+        break;
+    case bit_and:
+        load(1,"w8"); load(2,"w9");
+        o << "    and   w8, w8, w9\n";
+        store(0,"w8");
+        break;
     case rmem:
     case wmem:
         load(1, "w8");
@@ -156,10 +235,22 @@ void IRInstr::gen_asm(std::ostream& o) {
         o << "    cset  w8, eq\n";
         store(0,"w8");
         break;
+    case cmp_ne:
+        load(1,"w8"); load(2,"w9");
+        o << "    cmp   w8, w9\n";
+        o << "    cset  w8, ne\n";
+        store(0,"w8");
+        break;
     case cmp_lt:
         load(1,"w8"); load(2,"w9");
         o << "    cmp   w8, w9\n";
         o << "    cset  w8, lt\n";
+        store(0,"w8");
+        break;
+    case cmp_gt:
+        load(1,"w8"); load(2,"w9");
+        o << "    cmp   w8, w9\n";
+        o << "    cset  w8, gt\n";
         store(0,"w8");
         break;
     case cmp_le:
@@ -223,7 +314,8 @@ CFG::CFG(const std::string& name, Type retType)
     : current_bb(nullptr), functionName(name),
       nextFreeSymbolIndex(0), nextBBnumber(0),
       nextTmpNumber(0), returnType_(retType), frameSize_(0) {
-    add_to_symbol_table("!retval", Type::INT);
+    if (retType != Type::VOID)
+        add_to_symbol_table("!retval", Type::INT);
 }
 
 CFG::~CFG() {
@@ -244,6 +336,11 @@ void CFG::add_to_symbol_table(const std::string& name, Type t) {
     nextFreeSymbolIndex += typeSize(t);
     SymbolType[name]  = t;
     SymbolIndex[name] = nextFreeSymbolIndex;
+}
+
+void CFG::add_param(const std::string& name, Type t) {
+    add_to_symbol_table(name, t);
+    params_.push_back(name);
 }
 
 std::string CFG::create_new_tempvar(Type t) {
@@ -290,6 +387,13 @@ void CFG::gen_asm_prologue(std::ostream& o) {
     frameSize_ = align16(sz + 16);
     o << "    stp   x29, x30, [sp, #-" << frameSize_ << "]!\n";
     o << "    mov   x29, sp\n";
+    {
+        static const char* paramRegs[] = {"w0","w1","w2","w3","w4","w5"};
+        for (int i = 0; i < (int)params_.size() && i < 6; i++) {
+            int off = get_var_index(params_[i]);
+            o << "    str   " << paramRegs[i] << ", [x29, #-" << off << "]\n";
+        }
+    }
 #else
 #ifdef __APPLE__
     o << ".globl _" << functionName << "\n";
@@ -301,6 +405,13 @@ void CFG::gen_asm_prologue(std::ostream& o) {
     o << "    pushq %rbp\n";
     o << "    movq  %rsp, %rbp\n";
     if (sz > 0) o << "    subq  $" << sz << ", %rsp\n";
+    {
+        static const char* paramRegs[] = {"%edi","%esi","%edx","%ecx","%r8d","%r9d"};
+        for (int i = 0; i < (int)params_.size() && i < 6; i++) {
+            int off = get_var_index(params_[i]);
+            o << "    movl " << paramRegs[i] << ", -" << off << "(%rbp)\n";
+        }
+    }
 #endif
 }
 

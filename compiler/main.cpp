@@ -56,12 +56,11 @@ int main(int argc, const char** argv)
     if (st.hasError) exit(1);
 
     // ── Passe 2 : construction de l'IR ────────────────────────────
-    CFG cfg("main", Type::INT);
-    CodeGenVisitor irGen(cfg);
+    CodeGenVisitor irGen;
     irGen.visit(tree);
 
     // ── Passe 3 : génération d'assembleur x86 depuis l'IR ─────────
-    cfg.gen_asm(cout);
+    irGen.gen_asm(cout);
 
     return 0;
 }

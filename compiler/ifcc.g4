@@ -2,13 +2,30 @@ grammar ifcc;
 
 axiom : prog EOF ;
 
-prog : 'int' 'main' '(' ')' '{' stmt* '}' ;
+prog : func_def+ ;
+
+func_def : rettype ID '(' params? ')' '{' stmt* '}' ;
+
+rettype : 'int' | 'void' ;
+
+params : param (',' param)* ;
+
+param : 'int' ID ;
 
 stmt
     : decl_stmt
-    | assign_stmt
+    | expr_stmt
     | return_stmt
+    | block_stmt
+    | if_stmt
+    | while_stmt
     ;
+
+block_stmt : '{' stmt* '}' ;
+
+if_stmt    : 'if' '(' expr ')' stmt ('else' stmt)? ;
+
+while_stmt : 'while' '(' expr ')' stmt ;
 
 // Déclaration : soit liste (int a,b,c;) soit une seule avec init (int a=expr;)
 decl_stmt
@@ -16,25 +33,54 @@ decl_stmt
     | 'int' ID ('=' expr)? ';'
     ;
 
-assign_stmt
-    : ID '=' expr ';'
+// Expression-instruction : affectation, appel de fonction, etc.
+expr_stmt
+    : expr ';'
     ;
 
 return_stmt
     : 'return' expr ';'
+    | 'return' ';'
     ;
 
-// Expressions sans récursion à gauche (priorités)
+// Expressions sans récursion à gauche (priorités croissantes)
 expr
+    : ID '=' expr                       // affectation (retourne la valeur)
+    | eq_expr
+    ;
+
+eq_expr
+    : rel_expr (('=='|'!=') rel_expr)*
+    ;
+
+rel_expr
+    : bitor_expr (('<'|'>') bitor_expr)*
+    ;
+
+bitor_expr
+    : xor_expr ('|' xor_expr)*
+    ;
+
+xor_expr
+    : and_expr ('^' and_expr)*
+    ;
+
+and_expr
+    : add_expr ('&' add_expr)*
+    ;
+
+add_expr
     : term (('+'|'-') term)*
     ;
 
 term
-    : factor ('*' factor)*
+    : factor (('*'|'/'|'%') factor)*
     ;
 
 factor
     : '-' factor
+    | '!' factor
+    | ID '(' (expr (',' expr)*)? ')'    // appel de fonction
     | CONST
     | ID
     | '(' expr ')'
@@ -43,6 +89,7 @@ factor
 ID     : [a-zA-Z_][a-zA-Z0-9_]* ;
 CONST  : [0-9]+ ;
 
-COMMENT   : '/*' .*? '*/' -> skip ;
-DIRECTIVE : '#' .*? '\n' -> skip ;
+COMMENT    : '/*' .*? '*/' -> skip ;
+LINE_COMMENT: '//' ~[\r\n]* -> skip ;
+DIRECTIVE  : '#' .*? '\n' -> skip ;
 WS        : [ \t\r\n]+ -> skip ;
