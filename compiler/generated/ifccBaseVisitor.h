@@ -23,6 +23,10 @@ public:
     return visitChildren(ctx);
   }
 
+  virtual std::any visitFunctionDef(ifccParser::FunctionDefContext *ctx) override {
+    return visitChildren(ctx);
+  }
+
   virtual std::any visitReturnStmt(ifccParser::ReturnStmtContext *ctx) override {
     return visitChildren(ctx);
   }
@@ -44,6 +48,10 @@ public:
   }
 
   virtual std::any visitIfStmt(ifccParser::IfStmtContext *ctx) override {
+    return visitChildren(ctx);
+  }
+
+  virtual std::any visitWhileStmt(ifccParser::WhileStmtContext *ctx) override {
     return visitChildren(ctx);
   }
 
@@ -100,6 +108,10 @@ public:
   }
 
   virtual std::any visitVarExpr(ifccParser::VarExprContext *ctx) override {
+    return visitChildren(ctx);
+  }
+
+  virtual std::any visitCallExpr(ifccParser::CallExprContext *ctx) override {
     return visitChildren(ctx);
   }
 

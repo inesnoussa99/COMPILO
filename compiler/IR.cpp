@@ -136,6 +136,10 @@ void IRInstr::gen_asm(std::ostream &o) {
         case Operation::jmp:
             o << "    jmp " << params[0] << "\n";
             break;
+        case Operation::call:
+            o << "    call " << params[0] << "\n";
+            o << "    movl %eax, " << rDest << "\n";
+            break;
     }
 }
 
@@ -169,7 +173,7 @@ std::string CFG::create_new_tempvar() {
 }
 
 std::string CFG::get_next_label() {
-    return ".L" + std::to_string(nextLabel++);
+    return ".L_" + funcName + "_" + std::to_string(nextLabel++);
 }
 
 std::string CFG::IR_reg_to_asm(std::string reg) {

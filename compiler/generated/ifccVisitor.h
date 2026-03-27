@@ -23,6 +23,8 @@ public:
 
     virtual std::any visitProg(ifccParser::ProgContext *context) = 0;
 
+    virtual std::any visitFunctionDef(ifccParser::FunctionDefContext *context) = 0;
+
     virtual std::any visitReturnStmt(ifccParser::ReturnStmtContext *context) = 0;
 
     virtual std::any visitDeclaration(ifccParser::DeclarationContext *context) = 0;
@@ -34,6 +36,8 @@ public:
     virtual std::any visitArrayAssignment(ifccParser::ArrayAssignmentContext *context) = 0;
 
     virtual std::any visitIfStmt(ifccParser::IfStmtContext *context) = 0;
+
+    virtual std::any visitWhileStmt(ifccParser::WhileStmtContext *context) = 0;
 
     virtual std::any visitBlocStmt(ifccParser::BlocStmtContext *context) = 0;
 
@@ -62,6 +66,8 @@ public:
     virtual std::any visitParExpr(ifccParser::ParExprContext *context) = 0;
 
     virtual std::any visitVarExpr(ifccParser::VarExprContext *context) = 0;
+
+    virtual std::any visitCallExpr(ifccParser::CallExprContext *context) = 0;
 
     virtual std::any visitBitwiseXorExpr(ifccParser::BitwiseXorExprContext *context) = 0;
 

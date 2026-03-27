@@ -8,7 +8,10 @@ CodeGenVisitor::CodeGenVisitor(std::map<antlr4::ParserRuleContext*, int> address
 }
 
 CodeGenVisitor::~CodeGenVisitor() {
-    delete cfg;
+    for (auto c : cfgs) {
+        delete c;
+    }
+    cfgs.clear();
 }
 
 antlrcpp::Any CodeGenVisitor::visitProg(ifccParser::ProgContext *ctx) {
@@ -296,6 +299,7 @@ antlrcpp::Any CodeGenVisitor::visitWhileStmt(ifccParser::WhileStmtContext *ctx) 
 
     return 0;
 }
+
 antlrcpp::Any CodeGenVisitor::visitFunctionDef(ifccParser::FunctionDefContext *ctx) {
     std::string funcName = ctx->VAR(0)->getText();
 
@@ -305,24 +309,52 @@ antlrcpp::Any CodeGenVisitor::visitFunctionDef(ifccParser::FunctionDefContext *c
     this->cfgs.push_back(funcCFG); 
     this->cfg = funcCFG;
 
-    BasicBlock* entryBB = new BasicBlock(funcCFG, funcName);
+    BasicBlock* entryBB = new BasicBlock(funcCFG, funcCFG->get_next_label()); 
     funcCFG->add_bb(entryBB);
     funcCFG->current_bb = entryBB;
 
     std::vector<std::string> paramRegs = {"%edi", "%esi", "%edx", "%ecx", "%r8d", "%r9d"};
     int paramOffset = 0;
+
     for (size_t i = 1; i < ctx->VAR().size(); ++i) {
         paramOffset -= 4; 
+        std::string dest = "!offset_" + std::to_string(paramOffset);
+        
         if (i - 1 < 6) {
-            std::string dest = "!offset_" + std::to_string(paramOffset);
             funcCFG->current_bb->add_IRInstr(Operation::copy, dest, {paramRegs[i-1]});
+        } else {
+            //todo: 处理第7个及以上参数的传递（通过栈传递）
         }
     }
 
-    this->visit(ctx->blocStmt());
+    this->visit(ctx->blocStmt);
+    
     std::string defaultRetVar = cfg->create_new_tempvar();
     cfg->current_bb->add_IRInstr(Operation::ldconst, defaultRetVar, {"0"});
     cfg->current_bb->add_IRInstr(Operation::ret, "", {defaultRetVar});
 
     return 0;
+}
+
+antlrcpp::Any CodeGenVisitor::visitCallExpr(ifccParser::CallExprContext *ctx) {
+    std::string funcName = ctx->VAR()->getText();
+    std::vector<std::string> argRegs = {"%edi", "%esi", "%edx", "%ecx", "%r8d", "%r9d"};
+
+    std::vector<std::string> argVars;
+    for (auto argExpr : ctx->expr()) {
+        argVars.push_back(std::any_cast<std::string>(this->visit(argExpr)));
+    }
+
+    for (size_t i = 0; i < argVars.size(); ++i) {
+        if (i < 6) {
+            cfg->current_bb->add_IRInstr(Operation::copy, argRegs[i], {argVars[i]});
+        } else {
+            // todo: 处理第7个及以上参数的传递（通过栈传递）
+        }
+    }
+
+    std::string dest = cfg->create_new_tempvar();
+    cfg->current_bb->add_IRInstr(Operation::call, dest, {funcName});
+
+    return dest;
 }

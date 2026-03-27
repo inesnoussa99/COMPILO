@@ -3,7 +3,7 @@ main:
     pushq %rbp
     movq %rsp, %rbp
     subq $48, %rsp
-.L_main_entry:
+.L_main_0:
     movl $10, %eax
     movl %eax, -20(%rbp)
     movl -20(%rbp), %eax
@@ -33,8 +33,12 @@ main:
     movl -44(%rbp), %eax
     movl %eax, -16(%rbp)
     movl -16(%rbp), %eax
-    jmp end_main
-end_main:
+    jmp .L_end_main
+    movl $0, %eax
+    movl %eax, -48(%rbp)
+    movl -48(%rbp), %eax
+    jmp .L_end_main
+.L_end_main:
     movq %rbp, %rsp
     popq %rbp
     ret

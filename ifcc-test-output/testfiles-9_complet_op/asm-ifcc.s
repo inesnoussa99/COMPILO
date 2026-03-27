@@ -2,8 +2,8 @@
 main:
     pushq %rbp
     movq %rsp, %rbp
-    subq $384, %rsp
-.L_main_entry:
+    subq $400, %rsp
+.L_main_0:
     movl $10, %eax
     movl %eax, -84(%rbp)
     movl $2, %eax
@@ -160,9 +160,9 @@ main:
     movl %eax, -252(%rbp)
     movl -252(%rbp), %eax
     cmpl $0, %eax
-    je .L2
-    jmp .L0
-.L0:
+    je .L_main_3
+    jmp .L_main_1
+.L_main_1:
     movl $2, %eax
     movl %eax, -260(%rbp)
     movl -260(%rbp), %ecx
@@ -173,9 +173,9 @@ main:
     movl %eax, -264(%rbp)
     movl -264(%rbp), %eax
     cmpl $0, %eax
-    jne .L5
-    jmp .L4
-.L4:
+    jne .L_main_6
+    jmp .L_main_5
+.L_main_5:
     movl $0, %eax
     movl %eax, -268(%rbp)
     movl -268(%rbp), %ecx
@@ -186,35 +186,35 @@ main:
     movl %eax, -272(%rbp)
     movl -272(%rbp), %eax
     cmpl $0, %eax
-    jne .L5
-    jmp .L6
-.L5:
+    jne .L_main_6
+    jmp .L_main_7
+.L_main_6:
     movl $1, %eax
     movl %eax, -256(%rbp)
-    jmp .L7
-.L6:
+    jmp .L_main_8
+.L_main_7:
     movl $0, %eax
     movl %eax, -256(%rbp)
-    jmp .L7
-.L7:
+    jmp .L_main_8
+.L_main_8:
     movl -256(%rbp), %eax
     cmpl $0, %eax
-    je .L2
-    jmp .L1
-.L1:
+    je .L_main_3
+    jmp .L_main_2
+.L_main_2:
     movl $1, %eax
     movl %eax, -248(%rbp)
-    jmp .L3
-.L2:
+    jmp .L_main_4
+.L_main_3:
     movl $0, %eax
     movl %eax, -248(%rbp)
-    jmp .L3
-.L3:
+    jmp .L_main_4
+.L_main_4:
     movl -248(%rbp), %eax
     cmpl $0, %eax
-    je .L10
-    jmp .L8
-.L8:
+    je .L_main_11
+    jmp .L_main_9
+.L_main_9:
     movl $0, %eax
     movl %eax, -276(%rbp)
     movl -276(%rbp), %ecx
@@ -230,9 +230,9 @@ main:
     movl %eax, -284(%rbp)
     movl -284(%rbp), %eax
     cmpl $0, %eax
-    je .L13
-    jmp .L11
-.L11:
+    je .L_main_14
+    jmp .L_main_12
+.L_main_12:
     movl $0, %eax
     movl %eax, -288(%rbp)
     movl $42, %eax
@@ -241,8 +241,8 @@ main:
     cltq
     movl -292(%rbp), %ecx
     movl %ecx, -64(%rbp, %rax, 4)
-    jmp .L12
-.L13:
+    jmp .L_main_13
+.L_main_14:
     movl $0, %eax
     movl %eax, -296(%rbp)
     movl $0, %eax
@@ -251,10 +251,10 @@ main:
     cltq
     movl -300(%rbp), %ecx
     movl %ecx, -64(%rbp, %rax, 4)
-    jmp .L12
-.L12:
-    jmp .L9
-.L10:
+    jmp .L_main_13
+.L_main_13:
+    jmp .L_main_10
+.L_main_11:
     movl $0, %eax
     movl %eax, -304(%rbp)
     movl $1, %eax
@@ -263,8 +263,8 @@ main:
     cltq
     movl -308(%rbp), %ecx
     movl %ecx, -64(%rbp, %rax, 4)
-    jmp .L9
-.L9:
+    jmp .L_main_10
+.L_main_10:
     movl $1, %eax
     movl %eax, -312(%rbp)
     movl -8(%rbp), %ecx
@@ -332,8 +332,12 @@ main:
     imull -380(%rbp), %eax
     movl %eax, -384(%rbp)
     movl -384(%rbp), %eax
-    jmp end_main
-end_main:
+    jmp .L_end_main
+    movl $0, %eax
+    movl %eax, -388(%rbp)
+    movl -388(%rbp), %eax
+    jmp .L_end_main
+.L_end_main:
     movq %rbp, %rsp
     popq %rbp
     ret

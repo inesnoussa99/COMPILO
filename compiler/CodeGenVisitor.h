@@ -33,15 +33,19 @@ public:
     virtual antlrcpp::Any visitVarAssignment(ifccParser::VarAssignmentContext *ctx) override;
     virtual antlrcpp::Any visitArrayAssignment(ifccParser::ArrayAssignmentContext *ctx) override;
     virtual antlrcpp::Any visitWhileStmt(ifccParser::WhileStmtContext *ctx) override;
+    virtual antlrcpp::Any visitFunctionDef(ifccParser::FunctionDefContext *ctx) override;
+    virtual antlrcpp::Any visitCallExpr(ifccParser::CallExprContext *ctx) override;
     void generate_all_asm(std::ostream &o) {
         for (auto c : cfgs) {
             c->gen_asm(o, c->funcName);
         }
     }
 
-    CFG* getCFG() { return cfg; }
+    std::vector<CFG*> getCFGs() { return cfgs; }
+    CFG* cfg;
+    std::vector<CFG*> cfgs;
 
 protected:
+    std::map<antlr4::ParserRuleContext*, int> addressTable;
     std::map<std::string, int> functionOffsets;
-    std::vector<CFG*> cfgs;
 };

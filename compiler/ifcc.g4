@@ -7,7 +7,7 @@ prog :
     ;
 
 functionDef
-    : 'int' VAR '(' ( 'int' VAR (',' 'int' VAR)* )? ')' blocStmt
+    : 'int' VAR '(' ( 'int' VAR (',' 'int' VAR)* )? ')' blocStmt=statement
     ;
 
 statement 
@@ -34,6 +34,7 @@ expr : '(' expr ')'                         # ParExpr
      | expr '|' expr                        # BitwiseOrExpr
      | expr '&&' expr                       # LogicalAndExpr
      | expr '||' expr                       # LogicalOrExpr
+     | VAR '(' (expr (',' expr)*)? ')'      # CallExpr
      | VAR                                  # VarExpr
      | CONST                                # ConstExpr
      | VAR '[' expr ']'                     # ArrayExpr 

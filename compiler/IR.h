@@ -15,7 +15,8 @@ enum class Operation {
     bitwise_and, bitwise_or, bitwise_xor, lshift, rshift,
     neg, bitwise_not, logical_not,
     array_load, array_store,
-    ret, jmp_if_zero, jmp_if_not_zero, jmp
+    ret, jmp_if_zero, jmp_if_not_zero, jmp,
+    call
 };
 
 class IRInstr {

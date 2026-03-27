@@ -14,7 +14,12 @@ int StaticVisitor::findVariable(std::string name) {
     return 1;
 }
 
-antlrcpp::Any CodeGenVisitor::visitProg(ifccParser::ProgContext *ctx) {
+antlrcpp::Any StaticVisitor::visitProg(ifccParser::ProgContext *ctx) {
+    for (auto funcCtx : ctx->functionDef()) {
+        std::string funcName = funcCtx->VAR(0)->getText();
+        discoveredFunctions.insert(funcName);
+    }
+
     for (auto funcCtx : ctx->functionDef()) {
         this->visit(funcCtx); 
     }
@@ -134,22 +139,45 @@ antlrcpp::Any StaticVisitor::visitArrayDeclaration(ifccParser::ArrayDeclarationC
 
 antlrcpp::Any StaticVisitor::visitFunctionDef(ifccParser::FunctionDefContext *ctx) {
     std::string funcName = ctx->VAR(0)->getText();
+
+    if (functionOffsets.find(funcName) != functionOffsets.end()) {
+        std::cerr << "Error: function '" << funcName << "' is already defined." << std::endl;
+        exit(1);
+    }
+
     currentOffset = 0; 
 
     scopeStack.push_back({});
 
     for (size_t i = 1; i < ctx->VAR().size(); ++i) {
-        currentOffset -= 4;
         std::string paramName = ctx->VAR(i)->getText();
+        
+        if (scopeStack.back().find(paramName) != scopeStack.back().end()) {
+            std::cerr << "Error: parameter '" << paramName << "' is already defined in function '" << funcName << "'." << std::endl;
+            exit(1);
+        }
+
+        currentOffset -= 4;
         scopeStack.back()[paramName] = currentOffset;
     }
 
-    this->visit(ctx->blocStmt());
-
+    this->visit(ctx->blocStmt);
     functionOffsets[funcName] = -currentOffset; 
-
     scopeStack.pop_back();
 
+    return 0; 
+}
+
+antlrcpp::Any StaticVisitor::visitCallExpr(ifccParser::CallExprContext *ctx) {
+    std::string funcName = ctx->VAR()->getText();
+
+    if (discoveredFunctions.find(funcName) == discoveredFunctions.end()) {
+        std::cerr << "Error: function '" << funcName << "' called but not defined." << std::endl;
+        exit(1);
+    }
+
+    for (auto arg : ctx->expr()) {
+        this->visit(arg);
+    }
     return 0;
-}0;
 }
