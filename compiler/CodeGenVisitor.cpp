@@ -1,5 +1,5 @@
 #include "CodeGenVisitor.h"
-#include <any> // 必须引入此头文件才能使用 std::any_cast
+#include <any>
 
 CodeGenVisitor::CodeGenVisitor(std::map<antlr4::ParserRuleContext*, int> addressTable, int totalOffset) 
     : addressTable(addressTable) {
@@ -275,4 +275,28 @@ antlrcpp::Any CodeGenVisitor::visitArrayAssignment(ifccParser::ArrayAssignmentCo
     std::string basePosition = std::to_string(addressTable[ctx]);
     cfg->current_bb->add_IRInstr(Operation::array_store, "", {basePosition, index, val});
     return val;
+}
+
+antlrcpp::Any CodeGenVisitor::visitWhileStmt(ifccParser::WhileStmtContext *ctx) {
+    BasicBlock* condBB = new BasicBlock(cfg, cfg->get_next_label());
+    BasicBlock* bodyBB = new BasicBlock(cfg, cfg->get_next_label());
+    BasicBlock* endBB  = new BasicBlock(cfg, cfg->get_next_label());
+
+    cfg->current_bb->add_IRInstr(Operation::jmp, "", {condBB->label});
+
+    cfg->add_bb(condBB);
+    cfg->current_bb = condBB;
+    std::string cond = std::any_cast<std::string>(this->visit(ctx->expr()));
+    cfg->current_bb->add_IRInstr(Operation::jmp_if_zero, "", {cond, endBB->label});
+    cfg->current_bb->add_IRInstr(Operation::jmp, "", {bodyBB->label});
+
+    cfg->add_bb(bodyBB);
+    cfg->current_bb = bodyBB;
+    this->visit(ctx->bodyStmt); 
+    cfg->current_bb->add_IRInstr(Operation::jmp, "", {condBB->label});
+
+    cfg->add_bb(endBB);
+    cfg->current_bb = endBB;
+
+    return 0;
 }

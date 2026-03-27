@@ -12,6 +12,7 @@ statement
     | VAR '[' index=expr ']' '=' val=expr ';'   # ArrayAssignment
     | 'if' '(' expr ')' thenStmt=statement 
       ('else' elseStmt=statement)?              # IfStmt
+    | 'while' '(' expr ')' bodyStmt=statement   # WhileStmt
     | '{' statements=statement* '}'             # BlocStmt
     ;
 

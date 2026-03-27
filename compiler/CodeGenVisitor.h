@@ -31,6 +31,7 @@ public:
     virtual antlrcpp::Any visitLogicalOrExpr(ifccParser::LogicalOrExprContext *ctx) override;
     virtual antlrcpp::Any visitVarAssignment(ifccParser::VarAssignmentContext *ctx) override;
     virtual antlrcpp::Any visitArrayAssignment(ifccParser::ArrayAssignmentContext *ctx) override;
+    virtual antlrcpp::Any visitWhileStmt(ifccParser::WhileStmtContext *ctx) override;
 
     CFG* getCFG() { return cfg; }
 
