@@ -384,8 +384,8 @@ void CFG::gen_asm_prologue(std::ostream& o) {
 #if TARGET_ARM64
     o << ".globl _" << functionName << "\n";
     o << "_" << functionName << ":\n";
-    frameSize_ = align16(sz + 16);
-    o << "    stp   x29, x30, [sp, #-" << frameSize_ << "]!\n";
+    frameSize_ = align16(sz + 16); // pas besoin de re-align 
+    o << "    stp   x29, x30, [sp, #-" << frameSize_ << "]!\n"; // ! : sp = sp - frameSize
     o << "    mov   x29, sp\n";
     {
         static const char* paramRegs[] = {"w0","w1","w2","w3","w4","w5"};
