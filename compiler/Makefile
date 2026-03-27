@@ -1,4 +1,3 @@
-# 关键修改：包含专门为 WSL 2025 准备的配置文件
 include config-wsl-2025.mk
 
 CC=g++
@@ -14,7 +13,8 @@ OBJECTS=build/ifccBaseVisitor.o \
 	build/ifccParser.o \
 	build/main.o \
 	build/StaticVisitor.o \
-	build/CodeGenVisitor.o
+	build/CodeGenVisitor.o \
+	build/IR.o
 
 ifcc: $(OBJECTS)
 	@mkdir -p build
