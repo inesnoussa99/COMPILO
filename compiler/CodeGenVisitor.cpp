@@ -1,9 +1,10 @@
 #include "CodeGenVisitor.h"
 #include <any>
 
-CodeGenVisitor::CodeGenVisitor(std::map<antlr4::ParserRuleContext*, int> addressTable, int totalOffset) 
-    : addressTable(addressTable) {
-    cfg = new CFG(totalOffset);
+CodeGenVisitor::CodeGenVisitor(std::map<antlr4::ParserRuleContext*, int> addressTable, 
+                               std::map<std::string, int> functionOffsets) 
+    : addressTable(addressTable), functionOffsets(functionOffsets) {
+    cfg = nullptr;
 }
 
 CodeGenVisitor::~CodeGenVisitor() {
@@ -11,12 +12,8 @@ CodeGenVisitor::~CodeGenVisitor() {
 }
 
 antlrcpp::Any CodeGenVisitor::visitProg(ifccParser::ProgContext *ctx) {
-    BasicBlock* entryBB = new BasicBlock(cfg, ".L_main_entry");
-    cfg->add_bb(entryBB);
-    cfg->current_bb = entryBB;
-
-    for (auto stmt : ctx->statement()) {
-        this->visit(stmt); 
+    for (auto funcCtx : ctx->functionDef()) {
+        this->visit(funcCtx); 
     }
     return 0;
 }
@@ -313,10 +310,11 @@ antlrcpp::Any CodeGenVisitor::visitFunctionDef(ifccParser::FunctionDefContext *c
     funcCFG->current_bb = entryBB;
 
     std::vector<std::string> paramRegs = {"%edi", "%esi", "%edx", "%ecx", "%r8d", "%r9d"};
+    int paramOffset = 0;
     for (size_t i = 1; i < ctx->VAR().size(); ++i) {
+        paramOffset -= 4; 
         if (i - 1 < 6) {
-            int offset = addressTable[ctx->VAR(i)]; 
-            std::string dest = "!offset_" + std::to_string(offset);
+            std::string dest = "!offset_" + std::to_string(paramOffset);
             funcCFG->current_bb->add_IRInstr(Operation::copy, dest, {paramRegs[i-1]});
         }
     }

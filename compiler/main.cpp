@@ -53,7 +53,7 @@ int main(int argn, const char **argv)
   s.visit(tree);
   CodeGenVisitor v(s.getAddressTable(), s.getTotalOffset());
   v.visit(tree);
-  v.getCFG()->gen_asm(std::cout);
+  v.generate_all_asm(std::cout);
 
   return 0;
 }

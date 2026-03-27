@@ -33,6 +33,11 @@ public:
     virtual antlrcpp::Any visitVarAssignment(ifccParser::VarAssignmentContext *ctx) override;
     virtual antlrcpp::Any visitArrayAssignment(ifccParser::ArrayAssignmentContext *ctx) override;
     virtual antlrcpp::Any visitWhileStmt(ifccParser::WhileStmtContext *ctx) override;
+    void generate_all_asm(std::ostream &o) {
+        for (auto c : cfgs) {
+            c->gen_asm(o, c->funcName);
+        }
+    }
 
     CFG* getCFG() { return cfg; }
 

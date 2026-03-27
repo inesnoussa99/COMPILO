@@ -134,16 +134,22 @@ antlrcpp::Any StaticVisitor::visitArrayDeclaration(ifccParser::ArrayDeclarationC
 
 antlrcpp::Any StaticVisitor::visitFunctionDef(ifccParser::FunctionDefContext *ctx) {
     std::string funcName = ctx->VAR(0)->getText();
-    
     currentOffset = 0; 
-    
+
+    scopeStack.push_back({});
+
     for (size_t i = 1; i < ctx->VAR().size(); ++i) {
-        currentOffset += 4;
+        currentOffset -= 4;
+        std::string paramName = ctx->VAR(i)->getText();
+        scopeStack.back()[paramName] = currentOffset;
     }
 
     this->visit(ctx->blocStmt());
 
-    functionOffsets[funcName] = currentOffset;
+    functionOffsets[funcName] = -currentOffset; 
+
+    scopeStack.pop_back();
 
     return 0;
+}0;
 }
