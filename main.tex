@@ -1,0 +1,587 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[french]{babel}
+\usepackage[a4paper,margin=2.5cm]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,shapes.geometric}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue,
+  urlcolor=blue,
+  pdftitle={Architecture du compilateur ifcc},
+  pdfauthor={OpenAI}
+}
+
+\definecolor{codegray}{RGB}{245,245,245}
+\definecolor{coderule}{RGB}{220,220,220}
+
+\lstset{
+  basicstyle=\ttfamily\small,
+  backgroundcolor=\color{codegray},
+  frame=single,
+  rulecolor=\color{coderule},
+  columns=fullflexible,
+  keepspaces=true,
+  showstringspaces=false,
+  breaklines=true
+}
+
+\title{Architecture du compilateur \texttt{ifcc}}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+
+\section{Vue d'ensemble du pipeline}
+
+Le compilateur \texttt{ifcc} transforme un fichier source C en fichier assembleur en plusieurs étapes successives~:
+
+\begin{center}
+\begin{tikzpicture}[
+  node distance=0.9cm,
+  box/.style={draw, rounded corners, align=center, minimum width=8cm, minimum height=1cm},
+  arr/.style={-{Latex[length=2.5mm]}, thick}
+]
+  \node (c) {Fichier \texttt{.c}};
+  \node[box, below=of c] (antlr) {\textbf{ANTLR4}\\Lexer + Parser $\rightarrow$ Arbre syntaxique (AST)};
+  \node[box, below=of antlr] (sym) {\textbf{SymbolTableVisitor}\\Passe 1 : vérifications sémantiques};
+  \node[box, below=of sym] (codegen) {\textbf{CodeGenVisitor}\\Passe 2 : construction du CFG (IR)};
+  \node[box, below=of codegen] (asm) {\textbf{CFG $\rightarrow$ \texttt{gen\_asm()}}\\Émission de l'assembleur final};
+  \node[below=of asm] (s) {Fichier \texttt{.s} (ARM64 ou x86-64)};
+
+  \draw[arr] (c) -- (antlr);
+  \draw[arr] (antlr) -- (sym);
+  \draw[arr] (sym) -- (codegen);
+  \draw[arr] (codegen) -- (asm);
+  \draw[arr] (asm) -- (s);
+\end{tikzpicture}
+\end{center}
+
+\section{Étape 1 --- La grammaire ANTLR4 (\texttt{ifcc.g4})}
+
+ANTLR4 lit la grammaire et génère automatiquement un lexer et un parser en C++.
+
+\subsection{Rôle du lexer}
+
+Le lexer découpe le texte source en \emph{tokens}. Par exemple~:
+
+\begin{lstlisting}
+int main() { return 42; }
+\end{lstlisting}
+
+est transformé en~:
+
+\begin{lstlisting}
+[INT][ID:"main"][LPAREN][RPAREN][LBRACE][RETURN][CONST:"42"][SEMI][RBRACE]
+\end{lstlisting}
+
+\subsection{Rôle du parser}
+
+Le parser assemble les tokens selon les règles de la grammaire et construit un AST (arbre syntaxique abstrait).
+
+Par exemple, l'expression \texttt{3 + 4 * 2} donne une structure dans laquelle la multiplication est plus profonde que l'addition~:
+
+\begin{center}
+\begin{tikzpicture}[
+  level distance=1.1cm,
+  sibling distance=2.4cm,
+  every node/.style={align=center}
+]
+\node {\texttt{add\_expr}}
+  child { node {\texttt{term}} child { node {\texttt{CONST:3}} } }
+  child { node {\texttt{term}}
+    child { node {\texttt{CONST:4}} }
+    child { node {\texttt{CONST:2}} }
+  };
+\end{tikzpicture}
+\end{center}
+
+La hiérarchie des règles encode les priorités opératoires~:
+
+\begin{center}
+\texttt{expr $>$ eq\_expr $>$ rel\_expr $>$ bitor\_expr $>$ xor\_expr $>$ and\_expr $>$ add\_expr $>$ term $>$ factor}
+\end{center}
+
+Plus une règle est profonde dans l'arbre, plus elle a de priorité. Ainsi, \texttt{term} (\texttt{*}, \texttt{/}, \texttt{\%}) est plus profond que \texttt{add\_expr} (\texttt{+}, \texttt{-})~: la multiplication est donc évaluée avant l'addition.
+
+ANTLR génère dans \texttt{compiler/generated/} les fichiers suivants~:
+\begin{lstlisting}
+ifccParser.cpp
+ifccLexer.cpp
+ifccBaseVisitor.cpp
+\end{lstlisting}
+
+Ces fichiers sont générés automatiquement et ne doivent jamais être modifiés à la main.
+
+\section{Étape 2 --- Le \texttt{SymbolTableVisitor} (passe sémantique)}
+
+Cette première visite de l'AST ne produit pas de code~: elle vérifie uniquement que le programme est sémantiquement correct.
+
+\subsection{Le pattern Visitor}
+
+ANTLR génère une classe \texttt{ifccBaseVisitor} contenant une méthode \texttt{visitXxx} pour chaque règle de grammaire. On hérite de cette classe et on redéfinit uniquement les méthodes utiles. Lorsqu'on appelle \texttt{visit(noeud)}, ANTLR choisit automatiquement la bonne méthode.
+
+\subsection{Pile de scopes}
+
+Le \texttt{SymbolTableVisitor} maintient une pile de scopes~:
+
+\begin{lstlisting}
+scopes_ = [
+  {"x": true, "y": false},   // scope fonction
+  {"i": true}                // scope bloc interne
+]
+\end{lstlisting}
+
+Chaque scope est une \texttt{map<string,bool>} associant à chaque variable un booléen indiquant si elle a été utilisée.
+
+Les opérations principales sont~:
+
+\begin{itemize}
+  \item \texttt{enterScope()} : empile une nouvelle map vide ;
+  \item \texttt{exitScope()} : dépile le scope courant et émet un warning pour chaque variable jamais utilisée ;
+  \item \texttt{declareVar(name)} : vérifie qu'il n'existe pas déjà de variable du même nom dans le scope courant, puis l'ajoute ;
+  \item \texttt{isVisible(name)} : cherche une variable du scope le plus interne vers le plus externe ;
+  \item \texttt{markUsed(name)} : marque comme utilisée la déclaration visible la plus interne.
+\end{itemize}
+
+\subsection{Table des fonctions}
+
+Le visiteur maintient aussi une table des fonctions~:
+
+\begin{lstlisting}
+map<string, FuncInfo>
+\end{lstlisting}
+
+Elle est remplie en deux sous-passes~:
+
+\begin{enumerate}
+  \item \texttt{collectSignatures()} : enregistre pour chaque fonction son nom, son nombre de paramètres et son type de retour ;
+  \item visite des corps de fonctions : chaque appel \texttt{f(a, b)} est vérifié par rapport à la table collectée.
+\end{enumerate}
+
+Cette organisation permet les appels avant définition (\emph{forward references}).
+
+\subsection{Erreurs et warnings}
+
+Les cas suivants provoquent \texttt{hasError = true} (sortie en erreur, pas d'assembleur)~:
+
+\begin{itemize}
+  \item variable utilisée avant déclaration ;
+  \item variable déclarée deux fois dans le même scope ;
+  \item appel à une fonction non définie ;
+  \item mauvais nombre d'arguments ;
+  \item fonction définie deux fois.
+\end{itemize}
+
+Les cas suivants déclenchent seulement un warning~:
+
+\begin{itemize}
+  \item variable déclarée mais jamais utilisée.
+\end{itemize}
+
+\section{Étape 3 --- La représentation intermédiaire (IR)}
+
+Avant d'émettre l'assembleur, \texttt{ifcc} passe par une représentation intermédiaire indépendante de l'architecture cible.
+
+\subsection{Classe \texttt{IRInstr}}
+
+Une instruction IR représente une opération atomique~:
+
+\begin{lstlisting}
+enum Operation {
+  ldconst, copy, add, sub, mul, div, mod,
+  cmp_eq, cmp_ne, cmp_lt, cmp_gt,
+  bit_or, bit_xor, bit_and, not_op, call, ...
+};
+\end{lstlisting}
+
+Chaque instruction contient~:
+\begin{itemize}
+  \item une opération ;
+  \item un type ;
+  \item une liste de paramètres correspondant à des variables IR.
+\end{itemize}
+
+Exemples~:
+
+\begin{lstlisting}
+add  INT  ["!tmp0", "x", "y"]    // !tmp0 = x + y
+copy INT  ["!retval", "!tmp0"]    // !retval = !tmp0
+\end{lstlisting}
+
+Toutes les variables IR appartiennent à un espace de noms plat. Chaque variable possède un slot sur la pile, identifié par un \texttt{SymbolIndex}. Les temporaires prennent des noms comme \texttt{!tmp0}, \texttt{!tmp1}, etc., et la valeur de retour s'appelle \texttt{!retval}.
+
+\subsection{Classe \texttt{BasicBlock}}
+
+Un bloc de base est une séquence d'instructions sans branchement interne. Il se termine par une décision de contrôle de flot~:
+
+\begin{lstlisting}
+BasicBlock* exit_true;
+BasicBlock* exit_false;
+std::string test_var_name;
+bool isReturnExit;
+\end{lstlisting}
+
+Interprétation~:
+\begin{itemize}
+  \item \texttt{exit\_true == nullptr} et \texttt{isReturnExit} : le bloc produit l'épilogue puis \texttt{ret} ;
+  \item \texttt{exit\_false == nullptr} : saut inconditionnel vers \texttt{exit\_true} ;
+  \item les deux pointeurs non nuls : branchement conditionnel sur \texttt{test\_var\_name}.
+\end{itemize}
+
+\subsection{Classe \texttt{CFG}}
+
+Chaque fonction est représentée par un graphe de flot de contrôle (\emph{Control Flow Graph})~:
+
+\begin{lstlisting}
+CFG "main"
+├── BasicBlock .Lmain_0   (entrée)
+├── BasicBlock .Lmain_1   (branche then)
+├── BasicBlock .Lmain_2   (merge)
+└── ...
+\end{lstlisting}
+
+Le \texttt{CFG} gère également~:
+\begin{itemize}
+  \item la table des symboles physiques, par exemple \texttt{SymbolIndex["x"] = 4} ;
+  \item la taille de la frame de pile, alignée sur 16 octets ;
+  \item le prologue et l'épilogue de fonction ;
+  \item le passage des paramètres.
+\end{itemize}
+
+\section{Étape 4 --- Le \texttt{CodeGenVisitor} (construction du CFG)}
+
+La seconde visite de l'AST ne vérifie plus le programme~: elle construit les \texttt{CFG} des fonctions.
+
+\subsection{Convention de retour des visiteurs d'expressions}
+
+Chaque méthode \texttt{visitXxx} correspondant à une expression retourne un \texttt{antlrcpp::Any} contenant le nom de la variable IR où se trouve le résultat.
+
+Une fonction utilitaire permet de récupérer cette valeur~:
+
+\begin{lstlisting}
+std::string evalExpr(ParseTree* node) {
+    return std::any_cast<std::string>(visit(node));
+}
+\end{lstlisting}
+
+Exemple pour \texttt{3 + x}~:
+
+\begin{lstlisting}
+visitAdd_expr
+  -> evalExpr(term "3")
+     -> visitFactor -> ldconst !tmp0, 3 -> retourne "!tmp0"
+  -> evalExpr(term "x")
+     -> visitFactor -> retourne "x"
+  -> add !tmp1, !tmp0, x
+  -> retourne "!tmp1"
+\end{lstlisting}
+
+\subsection{Gestion du shadowing}
+
+Le langage C autorise qu'une variable interne masque une variable externe du même nom. Or le \texttt{CFG} utilise un espace de noms plat. La solution consiste à maintenir une pile de renommage~:
+
+\begin{lstlisting}
+nameScopes_ : pile de maps nom_logique -> nom_IR
+\end{lstlisting}
+
+Exemple~:
+\begin{itemize}
+  \item \texttt{int x} dans le scope externe $\rightarrow$ nom IR \texttt{"x"} ;
+  \item \texttt{int x} dans un scope interne $\rightarrow$ nom IR \texttt{"x@0"}.
+\end{itemize}
+
+La fonction \texttt{resolveVar("x")} cherche du scope le plus interne vers le plus externe et retourne le bon nom IR.
+
+\subsection{Gestion du flot de contrôle}
+
+Pour une structure~:
+
+\begin{lstlisting}
+if (cond) { then } else { else }
+\end{lstlisting}
+
+le \texttt{CodeGenVisitor} construit~:
+
+\begin{lstlisting}
+current_bb:
+  [évalue cond -> condVar]
+  test_var_name = condVar
+  exit_true  = thenBB
+  exit_false = elseBB
+
+thenBB:
+  [visite then body]
+  exit_true = mergeBB   // si pas de return
+
+elseBB:
+  [visite else body]
+  exit_true = mergeBB   // si pas de return
+
+mergeBB:
+  [suite du code]
+\end{lstlisting}
+
+Le drapeau \texttt{isReturnExit} empêche de raccorder un bloc terminé par \texttt{return} au bloc de fusion. Lorsqu'un \texttt{return} est rencontré, le bloc courant est marqué comme bloc de sortie et un \emph{sink block} absorbe le code mort éventuel qui suivrait.
+
+\section{Étape 5 --- Émission de l'assembleur (\texttt{gen\_asm})}
+
+La méthode \texttt{CFG::gen\_asm()} effectue les opérations suivantes~:
+
+\begin{enumerate}
+  \item émission du prologue de fonction ;
+  \item génération du code de chaque \texttt{BasicBlock} ;
+  \item émission des branchements et de l'épilogue.
+\end{enumerate}
+
+Chaque \texttt{IRInstr::gen\_asm()} traduit une instruction IR en assembleur concret. Deux variantes existent selon l'architecture cible.
+
+\subsection{Exemple ARM64}
+
+\begin{lstlisting}
+// ARM64 (Apple Silicon)
+case add:
+    ldr w8, [x29, #-offset_gauche]
+    ldr w9, [x29, #-offset_droite]
+    add w8, w8, w9
+    str w8, [x29, #-offset_dest]
+\end{lstlisting}
+
+\subsection{Exemple x86-64}
+
+\begin{lstlisting}
+// x86-64 (Linux/Intel)
+case add:
+    movl -offset_gauche(%rbp), %eax
+    addl -offset_droite(%rbp), %eax
+    movl %eax, -offset_dest(%rbp)
+\end{lstlisting}
+
+Dans cette architecture pédagogique, toutes les variables résident en mémoire, sur la pile. Il n'y a pas d'allocation de registres~: cela simplifie fortement le compilateur, au prix d'un code moins optimisé.
+
+\section{Exemple complet}
+
+Considérons le programme suivant~:
+
+\begin{lstlisting}
+int main() {
+    int x;
+    x = 3 + 4;
+    return x;
+}
+\end{lstlisting}
+
+\subsection{Parsing}
+
+Le parser construit un AST comportant une définition de fonction, puis une séquence d'instructions~: déclaration, affectation, retour.
+
+\subsection{Passe sémantique}
+
+Le \texttt{SymbolTableVisitor} effectue les actions suivantes~:
+
+\begin{itemize}
+  \item création du scope de \texttt{main} ;
+  \item déclaration de \texttt{x} avec \texttt{used = false} ;
+  \item affectation à \texttt{x} $\Rightarrow$ \texttt{x} est marquée utilisée ;
+  \item lecture de \texttt{x} dans \texttt{return} $\Rightarrow$ \texttt{x} reste marquée utilisée ;
+  \item sortie du scope sans warning.
+\end{itemize}
+
+\subsection{Génération IR}
+
+Le \texttt{CodeGenVisitor} construit le \texttt{CFG} de \texttt{main}~:
+
+\begin{lstlisting}
+CFG "main" créé
+!retval alloué
+.Lmain_0 créé comme bloc courant
+int x -> add_to_symbol_table("x") -> offset 4
+
+x = 3 + 4 :
+  ldconst !tmp0, 3
+  ldconst !tmp1, 4
+  add     !tmp2, !tmp0, !tmp1
+  copy    x, !tmp2
+
+return x :
+  copy    !retval, x
+  isReturnExit = true
+  sink BB créé
+\end{lstlisting}
+
+\subsection{Émission finale}
+
+L'assembleur final contient typiquement~:
+
+\begin{itemize}
+  \item un prologue (sauvegarde de \texttt{x29/x30} sur ARM64 ou \texttt{rbp} sur x86-64) ;
+  \item les instructions correspondant aux opérations IR ;
+  \item un épilogue chargeant \texttt{!retval} dans le registre de retour ;
+  \item l'instruction \texttt{ret}.
+\end{itemize}
+
+\section{Fonctions et absence d'imbrication}
+
+Le compilateur \texttt{ifcc} ne supporte pas les fonctions imbriquées (une fonction définie à l'intérieur d'une autre). Cette contrainte est imposée directement par la grammaire ANTLR4~:
+
+\begin{lstlisting}
+prog : func_def+ ;
+func_def : rettype ID '(' params? ')' '{' stmt* '}' ;
+stmt : decl_stmt | expr_stmt | return_stmt | block_stmt | if_stmt | while_stmt ;
+// pas de func_def dans stmt !
+\end{lstlisting}
+
+Ainsi, le programme suivant est invalide~:
+
+\begin{lstlisting}
+int main() {
+    int helper() { return 1; }  // interdit
+    return helper();
+}
+\end{lstlisting}
+
+Les fonctions doivent être définies au même niveau~:
+
+\begin{lstlisting}
+int helper() { return 1; }
+int main()   { return helper(); }
+\end{lstlisting}
+
+\subsection{Comportement du \texttt{SymbolTableVisitor}}
+
+Dans \texttt{visitProg}, deux passes sont effectuées~:
+
+\begin{lstlisting}
+collectSignatures(ctx);
+for (auto* f : ctx->func_def())
+    this->visit(f);
+\end{lstlisting}
+
+Dans \texttt{visitFunc\_def}, la pile de scopes est complètement réinitialisée pour chaque fonction~:
+
+\begin{lstlisting}
+scopes_.clear();
+enterScope();
+\end{lstlisting}
+
+Chaque fonction possède donc un environnement totalement indépendant.
+
+\subsection{Appels de fonctions}
+
+Lorsqu'un appel comme \texttt{helper()} est rencontré dans \texttt{main}, le compilateur ne visite pas le corps de \texttt{helper}. Il vérifie uniquement la signature~:
+
+\begin{lstlisting}
+auto it = functions_.find("helper");
+// vérifie existence + nombre d'arguments
+\end{lstlisting}
+
+La table \texttt{functions\_} est globale, contrairement aux scopes qui sont locaux à chaque fonction.
+
+\subsection{Résumé}
+
+\begin{lstlisting}
+visitProg
+├── collectSignatures → functions_ = {"helper", "main"}
+│
+├── visitFunc_def "helper"
+│   ├── scopes_.clear()
+│   ├── enterScope()
+│   └── exitScope()
+│
+└── visitFunc_def "main"
+    ├── scopes_.clear()
+    ├── enterScope()
+    ├── appel helper() → vérification dans functions_
+    └── exitScope()
+\end{lstlisting}
+
+Les fonctions imbriquées nécessiteraient un mécanisme de capture d'environnement (comme les closures), ce qui dépasse le modèle de \texttt{ifcc} et même du langage C standard.
+
+\section{Fonctionnalités du compilateur}
+
+\subsection{Type entier 32 bits}
+
+Le type entier est défini dans \texttt{Type.h}. La fonction \texttt{typeSize(INT)} retourne 4.
+
+\begin{itemize}
+  \item Sur ARM64 : registres \texttt{w} (32 bits)
+  \item Sur x86-64 : suffixe \texttt{l} (\texttt{movl}, \texttt{addl})
+\end{itemize}
+
+Toute l'IR travaille en 32 bits.
+
+\subsection{Constantes}
+
+\begin{itemize}
+  \item Entières : supportées
+  \item Caractère : non supportées
+\end{itemize}
+
+\begin{lstlisting}
+CONST : [0-9]+ ;
+\end{lstlisting}
+
+\subsection{Opérateurs}
+
+\begin{itemize}
+  \item +, -, *, /, \% → IRInstr arithmétiques
+  \item |, \&, ^ → bitwise
+  \item ==, !=, <, > → comparaisons
+\end{itemize}
+
+\subsection{Affectation}
+
+Retourne une valeur, permet le chaînage.
+
+\subsection{Fonctions}
+
+\begin{itemize}
+  \item Paramètres copiés sur la pile
+  \item Types : int / void
+\end{itemize}
+
+\subsection{Contrôle de flux}
+
+\begin{itemize}
+  \item if / else
+  \item while
+\end{itemize}
+
+Implémentés via des BasicBlocks.
+
+\subsection{Scopes et shadowing}
+
+Renommage des variables internes (x@0, x@1).
+
+\subsection{Vérifications sémantiques}
+
+\begin{itemize}
+  \item déclaration avant usage
+  \item pas de doublon
+  \item warning si non utilisée
+\end{itemize}
+
+\section{Conclusion}
+
+L'architecture de \texttt{ifcc} repose sur une séparation claire entre~:
+
+\begin{itemize}
+  \item l'analyse syntaxique (ANTLR4) ;
+  \item la vérification sémantique (\texttt{SymbolTableVisitor}) ;
+  \item la construction d'une représentation intermédiaire structurée (\texttt{CodeGenVisitor}, \texttt{IRInstr}, \texttt{BasicBlock}, \texttt{CFG}) ;
+  \item l'émission finale de l'assembleur.
+\end{itemize}
+
+Cette organisation rend le compilateur plus modulaire, plus lisible et plus facile à faire évoluer, par exemple pour ajouter de nouvelles constructions du langage ou améliorer les optimisations.
+
+\end{document}

@@ -324,6 +324,27 @@ antlrcpp::Any CodeGenVisitor::visitFactor(ifccParser::FactorContext *ctx) {
         return dest;
     }
 
+    if (ctx->CHAR_CONST()) {
+        std::string text = ctx->CHAR_CONST()->getText(); // e.g. "'a'" ou "'\n'"
+        int val;
+        if (text[1] == '\\') {
+            switch (text[2]) {
+                case 'n':  val = '\n'; break;
+                case 't':  val = '\t'; break;
+                case 'r':  val = '\r'; break;
+                case '0':  val = '\0'; break;
+                case '\\': val = '\\'; break;
+                case '\'': val = '\''; break;
+                default:   val = (unsigned char)text[2]; break;
+            }
+        } else {
+            val = (unsigned char)text[1];
+        }
+        std::string dest = cfg_->create_new_tempvar(Type::INT);
+        cfg_->current_bb->add_IRInstr(IRInstr::ldconst, Type::INT, { dest, std::to_string(val) });
+        return dest;
+    }
+
     // Appel de fonction : ID '(' args? ')'
     if (ctx->ID() && ctx->children.size() >= 3 && ctx->children[1]->getText() == "(") {
         std::string funcName = ctx->ID()->getText();

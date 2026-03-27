@@ -82,12 +82,14 @@ factor
     | '!' factor
     | ID '(' (expr (',' expr)*)? ')'    // appel de fonction
     | CONST
+    | CHAR_CONST                         // constante caractère : 'a'
     | ID
     | '(' expr ')'
     ;
 
-ID     : [a-zA-Z_][a-zA-Z0-9_]* ;
-CONST  : [0-9]+ ;
+ID        : [a-zA-Z_][a-zA-Z0-9_]* ;
+CONST     : [0-9]+ ;
+CHAR_CONST: '\'' (~[\\'\r\n] | '\\' .) '\'' ;
 
 COMMENT    : '/*' .*? '*/' -> skip ;
 LINE_COMMENT: '//' ~[\r\n]* -> skip ;
