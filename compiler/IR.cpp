@@ -158,44 +158,44 @@ void IRInstr::gen_asm(std::ostream& o) {
     };
 
     switch (op) {
-    case ldconst:
+    case ldconst: //charger une constante dans une variable : params[0]=var, params[1]=constante
         o << "    mov   w8, #" << params[1] << "\n";
         store(0, "w8");
         break;
-    case copy:
+    case copy: // copier une variable dans une autre : params[0]=var_dest, params[1]=var_source
         load(1, "w8");
         store(0, "w8");
         break;
-    case add:
-        load(1, "w8"); load(2, "w9");
-        o << "    add   w8, w8, w9\n";
-        store(0, "w8");
+    case add: // addition : params[0]=var_dest, params[1]=var_source1, params[2]=var_source2
+        load(1, "w8"); load(2, "w9");  // w8=source1, w9=source2
+        o << "    add   w8, w8, w9\n"; 
+        store(0, "w8"); //on stocke le résultat qui est dans W8 dans la variable de destination
         break;
-    case sub:
+    case sub: //idem que add
         load(1, "w8"); load(2, "w9");
         o << "    sub   w8, w8, w9\n";
         store(0, "w8");
         break;
-    case mul:
+    case mul: //idem que add
         load(1, "w8"); load(2, "w9");
         o << "    mul   w8, w8, w9\n";
         store(0, "w8");
         break;
-    case div:
+    case div:   //idem que add, mais on utilise sdiv pour la division entière signée
         load(1,"w8"); load(2,"w9");
         o << "    sdiv  w8, w8, w9\n";
         store(0,"w8");
         break;
     case mod:
         load(1,"w8"); load(2,"w9");
-        o << "    sdiv  w10, w8, w9\n";
-        o << "    msub  w8, w10, w9, w8\n";
+        o << "    sdiv  w10, w8, w9\n"; // w10 = w8 / w9
+        o << "    msub  w8, w10, w9, w8\n"; // w8 = w8 - (w10 * w9)
         store(0,"w8");
         break;
     case not_op:
         load(1,"w8");
-        o << "    cmp   w8, #0\n";
-        o << "    cset  w8, eq\n";
+        o << "    cmp   w8, #0\n"; //compare w8 à 0
+        o << "    cset  w8, eq\n"; // w8 = (w8 == 0) ? 1 : 0
         store(0,"w8");
         break;
     case bit_or:
@@ -223,6 +223,7 @@ void IRInstr::gen_asm(std::ostream& o) {
         int nargs = (int)params.size() - 2;
         for (int i = 0; i < nargs && i < 6; i++) load(2+i, argRegs[i]);
         o << "    bl    _" << params[0] << "\n";
+         // "branch with link" = appelle la fonction (et sauvegarde l'adresse de retour dans x30)
         if (!params[1].empty()) {
             int odest = bb->cfg->get_var_index(params[1]);
             o << "    str   w0, [x29, #-" << odest << "]\n";
@@ -332,7 +333,7 @@ std::string CFG::new_BB_name() {
 }
 
 void CFG::add_to_symbol_table(const std::string& name, Type t) {
-    if (SymbolIndex.count(name)) return;
+    if (SymbolIndex.count(name)) return; // déjà présent, ne rien faire
     nextFreeSymbolIndex += typeSize(t);
     SymbolType[name]  = t;
     SymbolIndex[name] = nextFreeSymbolIndex;
@@ -384,8 +385,8 @@ void CFG::gen_asm_prologue(std::ostream& o) {
 #if TARGET_ARM64
     o << ".globl _" << functionName << "\n";
     o << "_" << functionName << ":\n";
-    frameSize_ = align16(sz + 16); // pas besoin de re-align 
-    o << "    stp   x29, x30, [sp, #-" << frameSize_ << "]!\n"; // ! : sp = sp - frameSize
+    frameSize_ = sz + 16; // on ajoute 16 pour sauvegarder x29 et x30
+    o << "    stp   x29, x30, [sp, #-" << frameSize_ << "]!\n"; // ! : sp
     o << "    mov   x29, sp\n";
     {
         static const char* paramRegs[] = {"w0","w1","w2","w3","w4","w5"};
