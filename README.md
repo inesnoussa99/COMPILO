@@ -42,7 +42,7 @@ Source C  →  ANTLR4 (lexer/parser)  →  AST
 | Catégorie | Opérateurs |
 |---|---|
 | Arithmétique | `+`, `-`, `*`, `/`, `%` |
-| Comparaison | `==`, `!=`, `<`, `>` |
+| Comparaison | `==`, `!=`, `<`, `>`, `<=`, `>=` |
 | Logique bit à bit | `\|`, `&`, `^` |
 | Unaires | `-` (négation), `!` (not logique) |
 | Affectation | `=` (retourne la valeur, chaînable : `a = b = 5`) |
@@ -51,6 +51,7 @@ Source C  →  ANTLR4 (lexer/parser)  →  AST
 - **Blocs** `{ }` avec scopes imbriqués
 - **Conditionnelle** : `if (expr) stmt` et `if (expr) stmt else stmt`
 - **Boucle** : `while (expr) stmt`
+- **Contrôle de boucle** : `break` (sortie immédiate), `continue` (itération suivante)
 - **Retour** : `return expr;` ou `return;` n'importe où dans la fonction (y compris dans des blocs imbriqués, des if/while, etc.)
 
 ### Fonctions
@@ -139,21 +140,27 @@ Le script `ifcc-test.py` compile chaque fichier `.c` du dossier `testfiles/` ave
 python3 ifcc-test.py testfiles/
 ```
 
-117 cas de test couvrant :
-
 | Plage | Catégorie |
 |---|---|
 | 1–23 | Retour de constantes et variables, arithmétique de base |
 | 24–35 | Division, modulo, opérateurs unaires |
 | 36–43 | Opérateurs bit à bit (`\|`, `&`, `^`) |
-| 44–53 | Comparaisons (`==`, `!=`, `<`, `>`) |
+| 44–53 | Comparaisons (`==`, `!=`, `<`, `>`, `<=`, `>=`) |
 | 54–61 | Unaires combinés |
 | 62–73 | Déclarations et affectation-expression |
 | 74–79 | `putchar` / `getchar` |
 | 80–94 | Fonctions, paramètres, vérifications d'appel |
 | 95–105 | Blocs, scopes, shadowing |
 | 106–114 | `if`, `else`, `while` |
-| 115–122 | `return` n'importe où (early return, return dans while, blocs imbriqués) |
+| 115–122 | `return` n'importe où, `break`, `continue` |
+
+### Fichiers non supportés (dans `testfiles_failed/`)
+Les fichiers suivants utilisent des fonctionnalités hors scope du compilateur et sont placés dans `testfiles_failed/` :
+- Opérateur ternaire `? :`
+- `switch/case`
+- `double` / `float`
+- Tableaux
+- `break`/`continue` dans des fichiers complexes hors contexte while simple
 
 ---
 

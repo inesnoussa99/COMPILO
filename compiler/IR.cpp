@@ -129,7 +129,14 @@ void IRInstr::gen_asm(std::ostream& o) {
         o << "    movzbl %al, %eax\n";
         o << "    movl %eax, " << reg(0) << "\n";
         break;
-    default:
+    case cmp_ge:
+        o << "    movl " << reg(1) << ", %eax\n";
+        o << "    cmpl " << reg(2) << ", %eax\n";
+        o << "    setge %al\n";
+        o << "    movzbl %al, %eax\n";
+        o << "    movl %eax, " << reg(0) << "\n";
+        break;
+   default:
         throw std::runtime_error("IRInstr::gen_asm x86: opération inconnue");
     }
 }
@@ -258,6 +265,12 @@ void IRInstr::gen_asm(std::ostream& o) {
         load(1,"w8"); load(2,"w9");
         o << "    cmp   w8, w9\n";
         o << "    cset  w8, le\n";
+        store(0,"w8");
+        break;
+    case cmp_ge:
+        load(1,"w8"); load(2,"w9");
+        o << "    cmp   w8, w9\n";
+        o << "    cset  w8, ge\n";
         store(0,"w8");
         break;
     default:

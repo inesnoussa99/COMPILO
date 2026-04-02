@@ -26,7 +26,10 @@ public:
     antlrcpp::Any visitBlock_stmt(ifccParser::Block_stmtContext *ctx) override;
     antlrcpp::Any visitIf_stmt(ifccParser::If_stmtContext *ctx) override;
     antlrcpp::Any visitWhile_stmt(ifccParser::While_stmtContext *ctx) override;
+    antlrcpp::Any visitBreak_stmt(ifccParser::Break_stmtContext *ctx) override;
+    antlrcpp::Any visitContinue_stmt(ifccParser::Continue_stmtContext *ctx) override;
     antlrcpp::Any visitDecl_stmt(ifccParser::Decl_stmtContext *ctx) override;
+    antlrcpp::Any visitDecl_item(ifccParser::Decl_itemContext *ctx) override;
     antlrcpp::Any visitExpr_stmt(ifccParser::Expr_stmtContext *ctx) override;
     antlrcpp::Any visitReturn_stmt(ifccParser::Return_stmtContext *ctx) override;
 
@@ -43,6 +46,10 @@ public:
 private:
     CFG* cfg_ = nullptr;
     std::vector<CFG*> cfgs_;
+
+    // ── Break / Continue targets ─────────────────────────────────
+    std::vector<BasicBlock*> breakTargets_;
+    std::vector<BasicBlock*> continueTargets_;
 
     // ── Résolution des noms avec shadowing ───────────────────────
     // nameScopes_[i] : nom logique → nom IR dans le scope i

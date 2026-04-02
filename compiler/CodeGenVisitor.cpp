@@ -116,13 +116,15 @@ antlrcpp::Any CodeGenVisitor::visitBlock_stmt(ifccParser::Block_stmtContext *ctx
 }
 
 antlrcpp::Any CodeGenVisitor::visitDecl_stmt(ifccParser::Decl_stmtContext *ctx) {
-    for (auto* idTok : ctx->ID())
-        declareIRVar(idTok->getText());
+    for (auto* item : ctx->decl_item())
+        this->visit(item);
+    return 0;
+}
 
-    // Initialisation : "int a = expr;"
-    if (ctx->expr() && !ctx->ID().empty()) {
-        std::string irName = resolveVar(ctx->ID(0)->getText());
-        std::string src    = evalExpr(ctx->expr());
+antlrcpp::Any CodeGenVisitor::visitDecl_item(ifccParser::Decl_itemContext *ctx) {
+    std::string irName = declareIRVar(ctx->ID()->getText());
+    if (ctx->expr()) {
+        std::string src = evalExpr(ctx->expr());
         cfg_->current_bb->add_IRInstr(IRInstr::copy, Type::INT, { irName, src });
     }
     return 0;
@@ -195,13 +197,40 @@ antlrcpp::Any CodeGenVisitor::visitWhile_stmt(ifccParser::While_stmtContext *ctx
     cfg_->current_bb->exit_true  = bodyBB;
     cfg_->current_bb->exit_false = afterBB;
 
-    // Body
+    // Body — push break/continue targets
     cfg_->add_bb(bodyBB);
+    breakTargets_.push_back(afterBB);
+    continueTargets_.push_back(condBB);
     this->visit(ctx->stmt());
+    breakTargets_.pop_back();
+    continueTargets_.pop_back();
+
     if (!cfg_->current_bb->isReturnExit)
         cfg_->current_bb->exit_true = condBB;
 
     cfg_->add_bb(afterBB);
+    return 0;
+}
+
+antlrcpp::Any CodeGenVisitor::visitBreak_stmt(ifccParser::Break_stmtContext *ctx) {
+    if (!breakTargets_.empty()) {
+        cfg_->current_bb->exit_true = breakTargets_.back();
+        cfg_->current_bb->isReturnExit = true;  // stop code emission after this
+        BasicBlock* sinkBB = new BasicBlock(cfg_, cfg_->new_BB_name());
+        sinkBB->isReturnExit = true;
+        cfg_->add_bb(sinkBB);
+    }
+    return 0;
+}
+
+antlrcpp::Any CodeGenVisitor::visitContinue_stmt(ifccParser::Continue_stmtContext *ctx) {
+    if (!continueTargets_.empty()) {
+        cfg_->current_bb->exit_true = continueTargets_.back();
+        cfg_->current_bb->isReturnExit = true;
+        BasicBlock* sinkBB = new BasicBlock(cfg_, cfg_->new_BB_name());
+        sinkBB->isReturnExit = true;
+        cfg_->add_bb(sinkBB);
+    }
     return 0;
 }
 
@@ -241,7 +270,11 @@ antlrcpp::Any CodeGenVisitor::visitRel_expr(ifccParser::Rel_exprContext *ctx) {
         std::string right = evalExpr(ctx->bitor_expr(i));
         std::string dest  = cfg_->create_new_tempvar(Type::INT);
         std::string op    = ctx->children[2*i - 1]->getText();
-        IRInstr::Operation irop = (op == "<") ? IRInstr::cmp_lt : IRInstr::cmp_gt;
+        IRInstr::Operation irop;
+        if      (op == "<")  irop = IRInstr::cmp_lt;
+        else if (op == ">")  irop = IRInstr::cmp_gt;
+        else if (op == "<=") irop = IRInstr::cmp_le;
+        else                 irop = IRInstr::cmp_ge;
         cfg_->current_bb->add_IRInstr(irop, Type::INT, { dest, result, right });
         result = dest;
     }

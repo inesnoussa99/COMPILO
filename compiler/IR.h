@@ -14,7 +14,7 @@ public:
     typedef enum {
         ldconst, copy, add, sub, mul,
         rmem, wmem, call,
-        cmp_eq, cmp_ne, cmp_lt, cmp_gt, cmp_le, div, mod, not_op,
+        cmp_eq, cmp_ne, cmp_lt, cmp_gt, cmp_le, cmp_ge, div, mod, not_op,
         bit_or, bit_xor, bit_and,
     } Operation;
 
@@ -62,7 +62,7 @@ public:
     void gen_asm_prologue(std::ostream& o);
     void gen_asm_epilogue(std::ostream& o);
 
-    std::string IR_reg_to_asm(const std::string& reg) const;  // x86 only
+    std::string IR_reg_to_asm(const std::string& reg) const;
 
     std::string functionName;
 
@@ -73,7 +73,7 @@ private:
     int nextFreeSymbolIndex = 0;
     int nextBBnumber        = 0;
     int nextTmpNumber       = 0;
-    int frameSize_          = 0;   // ARM64 : taille totale de la frame allouée
+    int frameSize_          = 0;
     Type returnType_;
 
     std::vector<BasicBlock*> bbs;

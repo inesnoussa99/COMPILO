@@ -19,7 +19,12 @@ stmt
     | block_stmt
     | if_stmt
     | while_stmt
+    | break_stmt
+    | continue_stmt
     ;
+
+break_stmt    : 'break' ';' ;
+continue_stmt : 'continue' ';' ;
 
 block_stmt : '{' stmt* '}' ;
 
@@ -29,8 +34,11 @@ while_stmt : 'while' '(' expr ')' stmt ;
 
 // Déclaration : soit liste (int a,b,c;) soit une seule avec init (int a=expr;)
 decl_stmt
-    : 'int' ID (',' ID)* ';'
-    | 'int' ID ('=' expr)? ';'
+    : 'int' decl_item (',' decl_item)* ';'
+    ;
+
+decl_item
+    : ID ('=' expr)?
     ;
 
 // Expression-instruction : affectation, appel de fonction, etc.
@@ -54,7 +62,7 @@ eq_expr
     ;
 
 rel_expr
-    : bitor_expr (('<'|'>') bitor_expr)*
+    : bitor_expr (('<'|'>'|'<='|'>=') bitor_expr)*
     ;
 
 bitor_expr

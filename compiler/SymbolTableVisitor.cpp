@@ -71,6 +71,17 @@ void SymbolTableVisitor::collectSignatures(ifccParser::ProgContext* ctx) {
 antlrcpp::Any SymbolTableVisitor::visitProg(ifccParser::ProgContext *ctx) {
     registerBuiltins();
     collectSignatures(ctx);
+    
+    // Vérifier que main est défini
+    bool hasMain = false;
+    for (auto* f : ctx->func_def()) {
+        if (f->ID()->getText() == "main") { hasMain = true; break; }
+    }
+    if (!hasMain) {
+        std::cerr << "error: undefined reference to 'main'\n";
+        hasError = true;
+    }
+    
     for (auto* f : ctx->func_def()) this->visit(f);
     return 0;
 }
@@ -105,16 +116,19 @@ antlrcpp::Any SymbolTableVisitor::visitBlock_stmt(ifccParser::Block_stmtContext 
 }
 
 antlrcpp::Any SymbolTableVisitor::visitDecl_stmt(ifccParser::Decl_stmtContext *ctx) {
-    for (auto* idTok : ctx->ID())
-        declareVar(idTok->getText());
+    for (auto* item : ctx->decl_item())
+        this->visit(item);
+    return 0;
+}
 
+antlrcpp::Any SymbolTableVisitor::visitDecl_item(ifccParser::Decl_itemContext *ctx) {
+    declareVar(ctx->ID()->getText());
     if (ctx->expr()) {
-        if (!ctx->ID().empty()) markUsed(ctx->ID(0)->getText());
+        markUsed(ctx->ID()->getText());
         this->visit(ctx->expr());
     }
     return 0;
 }
-
 antlrcpp::Any SymbolTableVisitor::visitExpr_stmt(ifccParser::Expr_stmtContext *ctx) {
     this->visit(ctx->expr());
     return 0;

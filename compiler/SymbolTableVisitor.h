@@ -22,6 +22,7 @@ public:
     antlrcpp::Any visitIf_stmt(ifccParser::If_stmtContext *ctx) override;
     antlrcpp::Any visitWhile_stmt(ifccParser::While_stmtContext *ctx) override;
     antlrcpp::Any visitDecl_stmt(ifccParser::Decl_stmtContext *ctx) override;
+    antlrcpp::Any visitDecl_item(ifccParser::Decl_itemContext *ctx) override;
     antlrcpp::Any visitExpr_stmt(ifccParser::Expr_stmtContext *ctx) override;
     antlrcpp::Any visitReturn_stmt(ifccParser::Return_stmtContext *ctx) override;
 
